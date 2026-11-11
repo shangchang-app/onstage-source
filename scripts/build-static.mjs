@@ -47,9 +47,15 @@ try {
   const commit = (git(['rev-parse', '--short', 'HEAD']) || 'unknown') + (git(['status', '--porcelain', '--untracked-files=no']) ? '-modified' : '');
   writeFileSync(join(app, 'public', 'version.json'), JSON.stringify({ version: pkg.version, commit, builtAt: new Date().toISOString(), base: base || '/' }, null, 2));
   console.log('[pages] 版本 ' + pkg.version + ' · 提交 ' + commit);
+  // 「隐藏工位搭子」分享卡二维码指向的探索入口：可用 BUDDY_URL 指定；默认 https://shangchang-app.github.io/<仓库名>/buddy/，永远不指向本机地址
+  const siteOrigin = (process.env.SITE_ORIGIN || 'https://shangchang-app.github.io').replace(/\/+$/, '');
+  const buddyUrl = process.env.BUDDY_URL || `${siteOrigin}${base}/buddy/`;
+  if (!/^https:\/\//.test(buddyUrl) || /localhost|127\.0\.0\.1/.test(buddyUrl)) { console.error('BUDDY_URL 必须是 https 的公开网址'); process.exit(2); }
+  console.log('[pages] 分享卡入口：' + buddyUrl);
+  writeFileSync(join(app, 'public', 'buddy-entry.json'), JSON.stringify({ url: buddyUrl }));
   writeFileSync(join(app, 'next.config.ts'), `import type { NextConfig } from 'next';
 const config: NextConfig = { output: 'export', trailingSlash: true, basePath: ${JSON.stringify(base)}, images: { unoptimized: true }, poweredByHeader: false, devIndicators: false,
-  env: { NEXT_PUBLIC_STATIC: '1', NEXT_PUBLIC_BASE_PATH: ${JSON.stringify(base)}, NEXT_PUBLIC_VERSION: ${JSON.stringify(pkg.version)}, NEXT_PUBLIC_COMMIT: ${JSON.stringify(commit)} } };
+  env: { NEXT_PUBLIC_STATIC: '1', NEXT_PUBLIC_BASE_PATH: ${JSON.stringify(base)}, NEXT_PUBLIC_VERSION: ${JSON.stringify(pkg.version)}, NEXT_PUBLIC_COMMIT: ${JSON.stringify(commit)}, NEXT_PUBLIC_BUDDY_URL: ${JSON.stringify(buddyUrl)} } };
 export default config;
 `);
   run(require.resolve('next/dist/bin/next'), ['build', '--webpack'], { NODE_ENV: 'production', NEXT_TELEMETRY_DISABLED: '1' });
