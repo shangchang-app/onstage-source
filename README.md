@@ -1,10 +1,11 @@
-# 上场 ONSTAGE · V1.6（1.6.0）
+# on stage · V1.7（1.7.0）
 
-找到机会，提前上场。面向大学生的 AI、出海及互联网职业机会与线上岗位体验平台。
+探索工作，也探索自己。面向大学生的 AI、出海及互联网职业机会与线上岗位体验平台。
 
 - 线上试玩版（GitHub Pages，纯静态，无服务器）：<https://shangchang-app.github.io/onstage/>
-- V1.6 预览（由本仓库的 GitHub Actions 从源码自动构建）：<https://shangchang-app.github.io/onstage-source/>
-- 本轮改动：`docs/V1.6-修改说明.md`；验收与发布：`docs/V1.6-验收与发布.md`
+- 预览（由本仓库的 GitHub Actions 从源码自动构建）：<https://shangchang-app.github.io/onstage-source/>
+- 本轮改动：`docs/V1.7-修改说明.md`（全站黑白视觉，含本地存储与回滚兼容说明）、`docs/V1.7-导航调整.md`
+- 上一轮：`docs/V1.6-修改说明.md`；验收、发布与回滚：`docs/V1.6-验收与发布.md`
 
 ## 两种运行方式
 
@@ -27,7 +28,8 @@ npm ci                                   # 按 package-lock.json 安装，不改
 npm run typecheck && npm test            # 类型检查 + 单元测试（47 项）
 npx playwright install chromium          # 第一次运行浏览器测试前需要（CI 里加 --with-deps）
 npm run build:static                     # 输出 dist-pages/，网址前缀 /onstage（线上仓库名）
-npm run test:pages                       # 在模拟的 GitHub Pages /onstage/ 下用 Chromium 实测（21 项）
+npm run test:pages                       # 在模拟的 GitHub Pages /onstage/ 下用 Chromium 实测（25 项）
+# 同源升级与回滚（单独执行）：npm run test:rollback -- <V1.4.1 解压目录> <用 --base=/onstage-source 构建的目录>
 npm run package:pages                    # 打成 release/onstage-site-<版本>-<提交>.zip，并输出 SHA256
 ```
 

@@ -36,14 +36,17 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
   const saveState = p => p.locator('.work-head .save-state').innerText();
   const toPlan = async p => { await p.goto(W, { waitUntil: 'networkidle' }); await p.click('.stepper li:nth-child(3) button'); await p.waitForSelector('#f-plan-reason'); };
 
-  await check('首页：一句话说清楚、能看到场景预览和成果示例、有开始入口；标注示例；没有登录入口', async () => {
+  await check('首页：品牌和副标题、趣味入口（未开放不显示按钮）、下面直接是岗位实践；标注示例；没有登录入口', async () => {
     const { c, p } = await ctx({ deviceScaleFactor: 2 }); await p.goto(SITE + '/', { waitUntil: 'networkidle' });
     const t = await p.locator('main').innerText();
-    for (const k of ['先试着做一次工作', '再决定要不要走这条路', '体验预览', '做完能得到什么', '示例', '2 个岗位主题', '有短版和完整版两种深度', '不是 2 个不同岗位', '简版练习', '正在规划', '两个 AI 回答', '问题诊断与行动建议卡', '评测标准与案例分析', '机会库里目前只有示例信息']) ok(t.includes(k), '首页缺少：' + k);
+    for (const k of ['on stage', '探索工作，也探索自己。', '你的隐藏工位搭子，', '藏不住了。', '情境娱乐探索，非专业人格或职业测评。', '做完能得到什么', '示例', '2 个岗位主题', '有短版和完整版两种深度', '不是 2 个不同岗位', '简版练习', '正在规划', '两个 AI 回答', '问题诊断与行动建议卡', '评测标准与案例分析', '机会库里目前只有示例信息']) ok(t.includes(k), '首页缺少：' + k);
     ok(await p.locator('main .card:has-text("实习生")').count() === 0, '首页不应推荐示例岗位');
-    ok(/版本 1\.6\.0 · 源码提交 [0-9a-f]{7}/.test(await p.locator('[data-testid="build-stamp"]').innerText()), '页脚没有版本和提交号');
-    const v = await (await p.request.get(SITE + '/version.json')).json(); ok(v.version === '1.6.0' && /^[0-9a-f]{7}/.test(v.commit), 'version.json 不对');
-    ok(await p.locator('a:has-text("开始 8 分钟体验")').count() === 1, '没有开始入口');
+    ok(!t.includes('找到机会，提前上场') && !t.includes('先试着做一次工作'), '首页还有旧副标题或重复的大标题');
+    ok(await p.locator('main :is(a,button):has-text("看看是谁")').count() === 0 && await p.locator('[data-testid="fun-soon"]').count() === 1, '动物模块未完成时不应显示按钮');
+    const fun = await p.locator('.fun').boundingBox(), exp = await p.locator('#h-exp').boundingBox(); ok(fun && exp && exp.y > fun.y && exp.y < 860, '岗位实践区应紧跟趣味入口，并在第一屏能看到');
+    ok(/版本 1\.7\.0 · 源码提交 [0-9a-f]{7}/.test(await p.locator('[data-testid="build-stamp"]').innerText()), '页脚没有版本和提交号');
+    const v = await (await p.request.get(SITE + '/version.json')).json(); ok(v.version === '1.7.0' && /^[0-9a-f]{7}/.test(v.commit), 'version.json 不对');
+    ok(await p.locator('main a.card[href$="/experiences/ops-returns/"]').count() === 1, '没有短版入口');
     ok(await p.locator('.site-head .badge:has-text("试用版")').count() === 1 && await p.locator('.site-head a:has-text("登录")').count() === 0, '页头状态不对');
     ok(await p.locator('.dev-bar').count() === 0, '出现测试环境提示条');
     ok((await p.locator('a[href^="/experiences"]').count()) === 0, '有链接缺少仓库路径前缀');
@@ -61,7 +64,7 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
 
   await check('旗舰短体验完整流程：收到任务 → 看材料 → 行动与理由 → 复盘（反馈对应实际操作）', async () => {
     const { c, p } = await ctx({ deviceScaleFactor: 2 }); const t0 = Date.now();
-    await p.goto(SITE + '/', { waitUntil: 'networkidle' }); await p.click('a:has-text("开始 8 分钟体验")'); await p.waitForURL('**/ops-returns/work/');
+    await p.goto(SITE + '/', { waitUntil: 'networkidle' }); await p.click('main a.card[href$="/experiences/ops-returns/"]'); await p.waitForURL('**/experiences/ops-returns/'); await p.click('a:has-text("开始（约 8 分钟）")'); await p.waitForURL('**/ops-returns/work/');
     await p.waitForSelector('.msg'); ok(await p.locator('textarea').count() === 0, '第一屏不应该出现长表单'); await save(p, '03-桌面-第1步-收到任务');
     await p.click('button:has-text("开始：去后台看看")'); await p.waitForSelector('.matc');
     await p.waitForFunction(() => document.activeElement?.id === 'q-h', null, { timeout: 5000 }).catch(() => {}); ok(await p.evaluate(() => document.activeElement?.id) === 'q-h', '换步骤后焦点没有到标题');
@@ -159,7 +162,7 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
   });
   await check('企业合作页：流程、素材清单、样例都标明示例；没有接收服务时不做假提交', async () => {
     const { c, p } = await ctx({ deviceScaleFactor: 2 }); await p.goto(SITE + '/cooperate/', { waitUntil: 'networkidle' }); const t = await p.locator('main').innerText();
-    for (const k of ['合作怎么进行', '企业需要提供', '一个体验长什么样', '学生最后交出的东西', '匿名汇总报告', '以下数字全部是虚构的', '目前上场还没有合作企业', '企业看不到任何学生的个人作答或草稿']) ok(t.includes(k), '缺少：' + k);
+    for (const k of ['合作怎么进行', '企业需要提供', '一个体验长什么样', '学生最后交出的东西', '匿名汇总报告', '以下数字全部是虚构的', '目前 on stage 还没有合作企业', '企业看不到任何学生的个人作答或草稿']) ok(t.includes(k), '缺少：' + k);
     ok(await p.locator('[data-testid="coop-pending"]').count() === 1 && await p.locator('main form').count() === 0 && !t.includes('已收到你的合作意向') && await p.locator('main button:has-text("提交")').count() === 0, '静态版不应出现提交表单');
     ok(!/TiMi|天美|月之暗面|Kimi|MiniMax/.test(t), '出现了未合作企业的名字');
     await save(p, '07-桌面-企业合作'); ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
@@ -227,7 +230,7 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
     ok((await p.locator('#rev-h').locator('..').innerText()).includes('看参考思路之前写的版本'), '没有保留看参考前的版本');
     await save(p, '24-桌面-成果页');
     await p.click('#rev-h ~ ul button, .sec-card ul .text-btn >> nth=0'); await p.waitForSelector('.warn-box:has-text("旧版本")'); ok(!(await p.locator('.work-card').innerText()).includes('第二版'), '旧版本显示不对');
-    await p.emulateMedia({ media: 'print' }); ok(await p.locator('.site-head').isHidden() && await p.locator('.crumb').isHidden() && await p.locator('.work-card').isVisible(), '打印版不对'); await p.emulateMedia({ media: 'screen' });
+    await p.emulateMedia({ media: 'print' }); ok(await p.locator('.site-head').isHidden() && await p.locator('.tabbar').isHidden() && await p.locator('.foot').isHidden() && await p.locator('.crumb').isHidden() && await p.locator('.work-card').isVisible(), '打印版不对'); await p.emulateMedia({ media: 'screen' });
     // 关闭后重新打开：草稿和成果都在
     const p2 = await c.newPage(); p2.errors = []; p2.on('pageerror', e => p2.errors.push(e.message)); await p.close(); await p2.goto(SITE + '/me/', { waitUntil: 'networkidle' }); await p2.waitForSelector('#h-works');
     const me = await p2.locator('main').innerText(); ok(me.includes('问题诊断与行动建议卡') && me.includes('1 次修改记录'), '「我的」没有成果'); ok(me.includes('完整版：退货率上升'), '「我的」没有草稿');
@@ -263,7 +266,7 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
     ok((await A.p.locator('main').innerText()).includes('问题诊断与行动建议卡'), '清除草稿后成果不见了'); await A.c.close();
     const B = await ctx(); await B.p.goto(SITE + '/me/', { waitUntil: 'networkidle' }); await B.p.waitForSelector('#h-backup');
     const bad = path.join(OUT, 'bad.json'); fs.writeFileSync(bad, '{"hello":1}'); await B.p.setInputFiles('#import-file', bad);
-    await B.p.waitForSelector('.bad-box[role="alert"]'); ok((await B.p.locator('.bad-box[role="alert"]').innerText()).includes('不是上场的备份文件'), '错误文件提示不对');
+    await B.p.waitForSelector('.bad-box[role="alert"]'); ok((await B.p.locator('.bad-box[role="alert"]').innerText()).includes('不是 on stage 的备份文件'), '错误文件提示不对');
     await B.p.setInputFiles('#import-file', file); await B.p.waitForSelector('.ok-box:has-text("导入完成")'); const t = await B.p.locator('main').innerText();
     ok(t.includes('新增 1 份成果') && t.includes('问题诊断与行动建议卡'), '导入后没有成果'); ok(t.includes('完整版：退货率上升'), '导入后没有草稿');
     await save(B.p, '26-桌面-我的-导入备份后'); await B.c.close();
@@ -315,6 +318,61 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
     await p.click('.list-row a:has-text("打开")'); await p.waitForSelector('.work-card');
     const o = await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth); ok(o <= 0, '成果页横向溢出 ' + o);
     await save(p, '43-手机-成果页'); ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
+  });
+
+  // ---------- V1.7：导航、旧链接、底部导航遮挡、焦点、换肤 ----------
+  await check('V1.7 导航：手机底部四栏（首页 / 机会 / 体验 / 我的），桌面同样四项；企业页从机会库、详情和页脚进入；旧链接都能打开', async () => {
+    const { c, p } = await ctx({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    await p.goto(SITE + '/events/', { waitUntil: 'networkidle' });
+    const tabs = await p.locator('.tabbar a').allInnerTexts(); ok(JSON.stringify(tabs.map(t => t.trim())) === JSON.stringify(['首页', '机会', '体验', '我的']), '底部导航不是四栏：' + tabs.join('/'));
+    ok((await p.locator('.tabbar a[aria-current="page"]').innerText()).trim() === '机会', '机会库页没有高亮「机会」');
+    for (const [u, k] of [['/companies/', '企业'], ['/companies/yc/', '远驰汽配'], ['/jobs/', '实习与校招'], ['/events/', '黑客松与企业商赛'], ['/experiences/', '岗位体验'], ['/me/', '我的'], ['/cooperate/', '企业合作'], ['/experiences/ops-returns/work/', '收到任务'], ['/experiences/ops-returns-deep/work/', '认识岗位']]) {
+      const r = await p.goto(SITE + u, { waitUntil: 'networkidle' }); ok(r.status() === 200, '旧链接打不开：' + u); ok((await p.locator('main').innerText()).includes(k), u + ' 内容不对');
+    }
+    await p.goto(SITE + '/companies/', { waitUntil: 'networkidle' }); ok((await p.locator('.tabbar a[aria-current="page"]').innerText()).trim() === '机会', '企业页没有高亮「机会」');
+    await p.goto(SITE + '/jobs/', { waitUntil: 'networkidle' }); await p.click('.lib-switch a[href$="/companies"], .lib-switch a[href$="/companies/"]'); await p.waitForURL(/\/companies\/?$/); await p.waitForSelector('main .card'); await save(p, '51-手机-企业（从机会库进入）');
+    await p.goto(SITE + '/experiences/ops-returns-deep/', { waitUntil: 'networkidle' }); ok(await p.locator('section:has-text("做这类工作的企业") a[href*="/companies/yc"]').count() === 1, '体验详情没有企业入口');
+    ok(await p.locator('.foot a:has-text("企业合作")').count() === 1 && await p.locator('.foot a[href*="/companies"]').count() === 1, '页脚缺少企业或企业合作入口');
+    const d = await ctx({ viewport: { width: 1280, height: 860 } }); await d.p.goto(SITE + '/', { waitUntil: 'networkidle' });
+    const top = await d.p.locator('.nav a').allInnerTexts(); ok(JSON.stringify(top) === JSON.stringify(['首页', '机会库', '岗位体验', '我的']), '桌面导航不对：' + top.join('/'));
+    ok(await d.p.locator('.tabbar').isHidden(), '桌面不应显示底部导航');
+    ok(p.errors.length === 0 && d.p.errors.length === 0, p.errors.concat(d.p.errors).join(' | ')); await d.c.close(); await c.close();
+  });
+
+  await check('V1.7 手机：底部导航不挡住页面最后的内容和按钮；材料抽屉盖在导航上方、关闭按钮能点到', async () => {
+    const { c, p } = await ctx({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    for (const u of ['/', '/experiences/', '/me/', '/cooperate/', '/companies/yc/']) {
+      await p.goto(SITE + u, { waitUntil: 'networkidle' }); await p.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight)); await p.waitForTimeout(150);
+      const r = await p.evaluate(() => { const bar = document.querySelector('.tabbar').getBoundingClientRect(); const els = [...document.querySelectorAll('main a, main button, .foot a')].filter(e => e.offsetParent); const last = els[els.length - 1].getBoundingClientRect(); return { barTop: bar.top, lastBottom: last.bottom }; });
+      ok(r.lastBottom <= r.barTop + 1, u + ' 底部导航挡住了最后的链接：' + JSON.stringify(r));
+    }
+    await toPlan(p); await p.click('.mobile-tools button:has-text("材料")'); await p.waitForSelector('.modal.sheet');
+    const z = await p.evaluate(() => { const m = document.querySelector('.modal.sheet').getBoundingClientRect(); const x = document.querySelector('.sheet-x').getBoundingClientRect(); const hit = document.elementFromPoint(x.left + x.width / 2, x.top + x.height / 2); return { bottom: m.bottom, h: innerHeight, hit: !!hit?.closest('.sheet-x') }; });
+    ok(z.hit && z.bottom <= z.h + 1, '材料抽屉被遮挡或关闭按钮点不到：' + JSON.stringify(z));
+    const under = await p.evaluate(() => { const r = document.querySelector('.modal.sheet').getBoundingClientRect(); const e = document.elementFromPoint(r.left + 20, r.bottom - 10); return !!e?.closest('.tabbar'); }); ok(!under, '底部导航盖住了抽屉');
+    await save(p, '52-手机-材料抽屉（V1.7）', false); await p.click('.sheet-x'); ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
+  });
+
+  await check('V1.7 键盘焦点：Tab 到的链接、按钮、输入框都有清楚的黑色焦点框；主按钮黑底白字；禁用按钮字色可读', async () => {
+    const { c, p } = await ctx(); await toPlan(p);
+    const seen = new Set(); for (let i = 0; i < 40; i++) { await p.keyboard.press('Tab'); const f = await p.evaluate(() => { const e = document.activeElement; if (!e || e === document.body) return null; const s = getComputedStyle(e); return { tag: e.tagName, outline: s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) >= 2, ring: s.boxShadow !== 'none', color: s.outlineColor }; }); if (!f) continue; ok(f.outline || f.ring, '有元素聚焦时看不出焦点：' + JSON.stringify(f)); seen.add(f.tag); }
+    ok(seen.has('A') && seen.has('BUTTON'), '键盘没有走到链接和按钮：' + [...seen]);
+    const dis = await p.evaluate(() => { const b = document.querySelector('.btn[disabled]'); if (!b) return null; const s = getComputedStyle(b); return [s.backgroundColor, s.color, s.opacity]; }); ok(!dis || (dis[0] === 'rgb(228, 226, 221)' && dis[1] === 'rgb(94, 90, 84)' && dis[2] === '1'), '禁用按钮样式不对（应为灰底深灰字、不降透明度）：' + dis);
+    await p.goto(SITE + '/experiences/ops-returns-deep/', { waitUntil: 'networkidle' });
+    const prim = await p.evaluate(() => { const b = document.querySelector('.btn-primary:not([disabled])'); const s = getComputedStyle(b); return [s.backgroundColor, s.color]; }); ok(prim[0] === 'rgb(21, 21, 21)' && prim[1] === 'rgb(255, 255, 255)', '主按钮不是黑底白字：' + prim);
+    const css = await p.evaluate(() => [...document.styleSheets].flatMap(s => { try { return [...s.cssRules].map(r => r.cssText); } catch { return []; } }).join('\n'));
+    for (const hex of ['207, 68, 16', '242, 106, 46', '253, 237, 227', '#cf4410', '#f26a2e', '#fdede3']) ok(!css.toLowerCase().includes(hex), '样式里还有原来的橙色：' + hex);
+    ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
+  });
+
+  await check('V1.7 截图：真实页面（手机与桌面）', async () => {
+    const m = await ctx({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    for (const [u, n] of [['/', '61-手机-首页'], ['/experiences/', '62-手机-岗位体验列表'], ['/experiences/ops-returns-deep/', '63-手机-体验详情'], ['/events/', '64-手机-机会库'], ['/companies/', '65-手机-企业'], ['/cooperate/', '66-手机-企业合作'], ['/me/', '67-手机-我的']]) { await m.p.goto(SITE + u, { waitUntil: 'networkidle' }); await m.p.waitForTimeout(300); await save(m.p, n); }
+    await practice(m.p); await save(m.p, '68-手机-体验工作区', false);
+    const d = await ctx({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
+    for (const [u, n] of [['/', '71-桌面-首页'], ['/experiences/', '72-桌面-岗位体验列表'], ['/experiences/ai-eval/', '73-桌面-体验详情'], ['/events/', '74-桌面-机会库'], ['/companies/yc/', '75-桌面-企业详情'], ['/cooperate/', '76-桌面-企业合作'], ['/me/', '77-桌面-我的'], ['/works/?id=nope', '78-桌面-找不到成果']]) { await d.p.goto(SITE + u, { waitUntil: 'networkidle' }); await d.p.waitForTimeout(300); await save(d.p, n); }
+    await practice(d.p); await save(d.p, '79-桌面-体验工作区', false);
+    ok(m.p.errors.length === 0 && d.p.errors.length === 0, m.p.errors.concat(d.p.errors).join(' | ')); await m.c.close(); await d.c.close();
   });
   await b.close(); server.close();
   fs.writeFileSync(path.join(OUT, 'pages.json'), JSON.stringify({ at: new Date().toISOString(), base: BASE, results }, null, 2));

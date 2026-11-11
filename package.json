@@ -1,6 +1,6 @@
 {
   "name": "onstage",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -24,6 +24,7 @@
     "test:e2e:screens": "node tests/e2e/run.mjs --mode=screens",
     "test:deploy": "node tests/e2e/run.mjs --mode=deploy",
     "test:pages": "node tests/e2e/pages-check.cjs dist-pages",
+    "test:rollback": "node tests/e2e/rollback-check.cjs",
     "verify": "npm run typecheck && npm test && npm run build && npm run test:e2e && npm run test:e2e:screens && npm run test:deploy",
     "package:pages": "node scripts/package-pages.mjs",
     "release": "npm run build:static && npm run test:pages && npm run package:pages"
