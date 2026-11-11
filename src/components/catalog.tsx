@@ -76,10 +76,11 @@ export function SamplePlan({ withReview = true }: { withReview?: boolean }) {
   </figure>;
 }
 
-function LibSwitch({ cur }: { cur: 'events' | 'jobs' }) {
+function LibSwitch({ cur }: { cur: 'events' | 'jobs' | 'companies' }) {
   return <nav className="lib-switch" aria-label="机会库分类">
     <Link href="/events" aria-current={cur === 'events' ? 'page' : undefined}><b>赛事</b><span>黑客松 · 企业商赛</span></Link>
     <Link href="/jobs" aria-current={cur === 'jobs' ? 'page' : undefined}><b>实习与校招</b><span>企业招聘信息</span></Link>
+    <Link href="/companies" aria-current={cur === 'companies' ? 'page' : undefined}><b>企业</b><span>在做什么、招哪些方向</span></Link>
   </nav>;
 }
 
@@ -98,7 +99,7 @@ export function Catalog({ kind }: { kind: string }) {
   };
   const types = kind === 'job' ? [['intern', '实习'], ['campus', '校招']] : kind === 'event' ? [['hack', '黑客松'], ['competition', '企业商赛']] : kind === 'experience' ? [['quick', '短版'], ['deep', '完整版'], ['simple', '简版练习']] : [];
   return <div className="wrap page">
-    {(kind === 'job' || kind === 'event') && <LibSwitch cur={kind === 'job' ? 'jobs' : 'events'} />}
+    {(kind === 'job' || kind === 'event' || kind === 'company') && <LibSwitch cur={kind === 'job' ? 'jobs' : kind === 'company' ? 'companies' : 'events'} />}
     <div className="ph"><h1>{head[kind][0]}</h1><p className="lede">{head[kind][1]}</p></div>
     {kind === 'experience' && <div className="notice" style={{ marginBottom: 8 }}>现在有 2 个岗位主题可以完整做完：跨境电商运营、AI 产品运营。<b>短版</b>：5–10 分钟，收到任务、看材料、给方案、看复盘（跨境电商运营）。<b>完整版</b>：6 步引导，示范学方法、独立练习、迁移练习，最后保存成果，40–50 分钟。跨境电商运营的短版和完整版是同一个情境的两种深度。<b>简版练习</b>：只有任务和参考思路，完整版本还在制作中。</div>}
     <div className="filters">
@@ -211,6 +212,7 @@ function ExperienceDetail({ item, items, preview }: { item: Item; items: Item[];
       <section className="block"><h2>能学到什么</h2><ul>{d.learn.map((x: string) => <li key={x}>{x}</li>)}</ul>
         {gs.lessons?.length > 0 && <p className="small ink2" style={{ marginTop: 8 }}>方法要点：{gs.lessons.join('；')}</p>}</section>
       <section className="block"><h2>做完得到什么</h2><p>{d.deliverable || '你的文字作答和参考思路'}</p></section>
+      {(() => { const cos = items.filter(i => i.kind === 'company' && i.status === 'published' && (i.data.directions || []).includes(d.direction)); return cos.length > 0 && !preview ? <section className="block"><h2>做这类工作的企业</h2><p className="small ink2">{cos.map((c, n) => <span key={c.id}>{n > 0 && '、'}<Link href={'/companies/' + c.id}>{c.data.title}</Link></span>)}{cos.some(c => c.demo) && '（示例企业）'}。了解它们在做什么、招哪些方向。</p></section> : null; })()}
       <section className="block"><h2>入门基础</h2><p>{d.level}。不需要相关经验，也不需要上传文件{quick ? '，理由写一两句就够' : '，用文字作答即可'}。</p></section>
       {gs.provenance?.length > 0 && <section className="block"><h2>内容来源与审核</h2>
         <ul className="prov">{gs.provenance.map((p: any) => <li key={p.title}><span className="src">{SOURCE_LABEL[p.kind]}</span> <b>{p.title}</b><p className="small ink2">{p.detail}</p>{p.url && <p className="xs muted">来源：<a href={p.url} target="_blank" rel="noopener noreferrer">{p.source}</a>（{p.date}）</p>}</li>)}</ul>

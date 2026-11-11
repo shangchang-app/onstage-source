@@ -20,17 +20,17 @@ type Ctx = {
 const SessionContext = createContext<Ctx>(null!);
 export const useSession = () => useContext(SessionContext);
 
-const NAV: [string, string, string][] = [
-  ['/', '首页', 'M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'],
-  ['/events', '机会库', 'M5 21V4h12l-2.5 4L17 12H5'],
-  ['/experiences', '岗位体验', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM10 8.5 15.5 12 10 15.5z'],
-  ['/companies', '企业', 'M3 21h18M5 21V6l7-3v18M12 9h7v12'],
-  ['/me', '我的', 'M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM4 21c1.6-4 4.6-6 8-6s6.4 2 8 6']
+/* 主导航（V1.7 起四栏）：[地址, 桌面文字, 手机底栏文字, 图标]。企业页 /companies 仍保留，入口在机会库分类、岗位与企业详情和页脚。 */
+const NAV: [string, string, string, string][] = [
+  ['/', '首页', '首页', 'M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'],
+  ['/events', '机会库', '机会', 'M5 21V4h12l-2.5 4L17 12H5'],
+  ['/experiences', '岗位体验', '体验', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM10 8.5 15.5 12 10 15.5z'],
+  ['/me', '我的', '我的', 'M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM4 21c1.6-4 4.6-6 8-6s6.4 2 8 6']
 ];
 function current(path: string, href: string) {
   if (href === '/') return path === '/';
-  if (href === '/events') return path.startsWith('/events') || path.startsWith('/jobs');
-  if (href === '/me') return path.startsWith('/me') || path.startsWith('/records') || path.startsWith('/login');
+  if (href === '/events') return path.startsWith('/events') || path.startsWith('/jobs') || path.startsWith('/companies');
+  if (href === '/me') return path.startsWith('/me') || path.startsWith('/works') || path.startsWith('/records') || path.startsWith('/login');
   return path.startsWith(href);
 }
 
@@ -111,10 +111,10 @@ export function Provider({ children }: { children: ReactNode }) {
         <div className="brand"><span className="wm">on stage</span></div>
         <p>探索工作，也探索自己。面向大学生的 AI、出海及互联网职业机会与实践平台。</p>
         <p>岗位体验是线上模拟的工作场景，自愿参加：不是实习经历、能力认证或录用保证，也不是投递门槛。on stage 不收集简历。</p>
-        <p><Link href="/cooperate">企业合作</Link>{session?.identity.role === 'admin' && <> · <Link href="/admin">内部后台</Link></>}</p>
+        <nav className="foot-links" aria-label="页脚导航"><Link href="/events">机会库</Link><Link href="/experiences">岗位体验</Link><Link href="/companies">企业</Link><Link href="/cooperate">企业合作</Link>{session?.identity.role === 'admin' && <Link href="/admin">内部后台</Link>}</nav>
         {process.env.NEXT_PUBLIC_VERSION && <p className="xs" data-testid="build-stamp">版本 {process.env.NEXT_PUBLIC_VERSION} · 源码提交 {process.env.NEXT_PUBLIC_COMMIT || '未记录'}</p>}
       </div></footer>
-      <nav className="tabbar" aria-label="底部导航">{NAV.map(([h, l, d]) => <Link key={h} href={h} aria-current={current(path, h) ? 'page' : undefined}><span className="ti" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg></span><span>{l}</span></Link>)}</nav>
+      <nav className="tabbar" aria-label="底部导航">{NAV.map(([h, , l, d]) => <Link key={h} href={h} aria-current={current(path, h) ? 'page' : undefined}><span className="ti" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg></span><span>{l}</span></Link>)}</nav>
       <div aria-live="polite" role="status">{toastMsg && <div className={'toast' + (toastMsg.bad ? ' bad' : '')}>{toastMsg.text}</div>}</div>
       <Modal open={blocked && !collapsed} title="登录身份已变化" role="alertdialog" onClose={() => setCollapsed(true)}
         footer={<><button className="btn" onClick={() => setCollapsed(true)}>先收起，复制内容</button><button className="btn btn-primary" onClick={() => window.location.reload()}>重新载入并核对身份</button></>}>
