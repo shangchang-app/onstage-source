@@ -62,6 +62,13 @@ test('事实/推测题：参考标注都在选项里，且每条「事实」都�
   for (const s of ['中国留学生愿意每月付费使用记账 App', '华人大学生记账的痛点不强']) assert.ok(!(f.check!.expect as string[]).includes(s));
 });
 
+test('比较口径：人群定义和是否重叠、文案和来源、统计口径、小样本、信号强度、参考结合约束', () => {
+  const note = g.brief.materials.find(m => m.id === 'm2')!.note;
+  for (const k of ['华人大学生＝', '中国留学生＝', '两类人互不包含', '没有去重', '同一版中英双语文案', '按打开次数计', '样本都很小', '不等于会用，更不等于会付钱']) assert.ok(note.includes(k), '材料 2 缺少：' + k);
+  assert.ok(g.lessons.find(l => l.id === 'G5')!.point.includes('强度不同的信号'));
+  assert.ok(g.reference.output[1].text.includes('结合本任务的约束') && g.reference.output[1].text.includes('6 周'));
+});
+
 test('开放题不设唯一答案：选人群、验证办法、迁移题都没有规则检查', () => {
   for (const id of ['g1.segment', 'g5.method', 'g7.change']) assert.equal(fields.find(f => f.id === id)!.check, undefined, id);
   assert.ok(g.reference.output[0].text.includes('不是评分依据'));
