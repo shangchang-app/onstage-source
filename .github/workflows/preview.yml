@@ -74,9 +74,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           SHORT=$(git rev-parse --short HEAD)
+          VER=$(node -p "require('./package.json').version")
           SHA=$(cut -d' ' -f1 out/live/*.sha256)
           printf '自动构建：提交 %s\n\n发布包（网址前缀 /onstage，用于线上仓库 shangchang-app/onstage）：\n- 文件：%s\n- SHA256：%s\n\nversion.json：\n```\n%s\n```\n' "$GITHUB_SHA" "$(ls out/live/*.zip | xargs -n1 basename)" "$SHA" "$(cat out/live/version.json)" > notes.md
-          gh release create "build-$SHORT" out/live/*.zip out/live/*.sha256 out/live/release.json --prerelease --title "构建 $SHORT（$(node -p \"require('./package.json').version\")）" --notes-file notes.md --target "$GITHUB_SHA"
+          gh release create "build-$SHORT" out/live/*.zip out/live/*.sha256 out/live/release.json --prerelease --title "构建 $SHORT（$VER）" --notes-file notes.md --target "$GITHUB_SHA"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
