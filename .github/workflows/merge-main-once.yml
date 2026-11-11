@@ -1,0 +1,36 @@
+name: Merge main into integration (one-off)
+# 一次性：把 main（a8b94a0，PR #2 的 squash 合并，内容与 0e9e1df 完全相同）合入整合分支，解决 PR #3 的冲突。
+# 因为 0e9e1df 已在整合分支历史里，main 不带来任何新内容，所以用 -s ours 保留整合分支的内容。
+# 推送前核对：两个分支的提交号符合预期；合并前后内容（tree）完全不变；main 的内容和 0e9e1df 完全相同。
+# 只快进推送整合分支，不强推，不改 main，不部署。
+on:
+  push:
+    branches: [tmp/merge-main-into-integration]
+permissions:
+  contents: write
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: integration/v1.7-buddy-growth
+          fetch-depth: 0
+      - name: Merge and verify
+        run: |
+          set -euo pipefail
+          git config user.name "shangchang-app"
+          git config user.email "shangchang-app@users.noreply.github.com"
+          git fetch origin main
+          HEAD_SHA=$(git rev-parse HEAD); MAIN_SHA=$(git rev-parse origin/main)
+          echo "integration=$HEAD_SHA main=$MAIN_SHA"
+          [ "${HEAD_SHA:0:7}" = "4aedf52" ] || { echo "::error::整合分支已变化，停止"; exit 1; }
+          [ "${MAIN_SHA:0:7}" = "a8b94a0" ] || { echo "::error::main 已变化，停止"; exit 1; }
+          [ "$(git rev-parse origin/main^{tree})" = "$(git rev-parse 0e9e1df^{tree})" ] || { echo "::error::main 内容和 0e9e1df 不同，停止"; exit 1; }
+          git merge-base --is-ancestor 0e9e1df HEAD || { echo "::error::0e9e1df 不在整合分支历史里，停止"; exit 1; }
+          BEFORE=$(git rev-parse HEAD^{tree})
+          git merge -s ours --no-edit -m "merge: main a8b94a0（PR #2 squash，内容与 0e9e1df 相同）合入整合分支，解决冲突，内容不变" origin/main
+          [ "$(git rev-parse HEAD^{tree})" = "$BEFORE" ] || { echo "::error::合并后内容变了，停止"; exit 1; }
+          git log --oneline -3
+          git push origin HEAD:refs/heads/integration/v1.7-buddy-growth
+          echo "### 已把 main 合入整合分支：$(git rev-parse --short HEAD)（内容不变）" >> "$GITHUB_STEP_SUMMARY"
