@@ -58,7 +58,7 @@ export function Work({ id }: { id: string }) {
   const lastField = useRef<HTMLElement | null>(null);
   const rev = useRef(0), dirty = useRef(false), inflight = useRef(false), timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined), attempt = useRef(0), frozen = useRef(false);
   const latest = useRef({ answers, progress, reflection }); latest.current = { answers, progress, reflection };
-  const heading = useRef<HTMLHeadingElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null), [focusTick, setFocusTick] = useState(0);
   const owner = session?.identity.owner;
   const backup = useBackup(owner && guide && !guide.unavailable ? `onstage:backup:${owner}:${id}` : null);
   const loaded = useRef('');
@@ -160,8 +160,10 @@ export function Work({ id }: { id: string }) {
     if (!readonly && step === (guide?.data?.guide?.quick ? 3 : 4)) snapshotPre();
     setProgress(p => { const n = { ...p, step, visited: [...new Set([...p.visited, p.step, step])].sort(), referenceViewed: p.referenceViewed || step === (guide?.data?.guide?.quick ? 3 : 4) }; latest.current.progress = n; return n; });
     if (!readonly) touch();
-    window.scrollTo({ top: 0, behavior: 'auto' }); setTimeout(() => heading.current?.focus(), 0);
+    window.scrollTo({ top: 0, behavior: 'auto' }); setFocusTick(t => t + 1);
   };
+  /* 换步骤后，等新步骤渲染完成再把焦点移到标题（不用定时器，避免在慢设备上焦点落到已移除的旧标题）。 */
+  useEffect(() => { if (focusTick) heading.current?.focus(); }, [focusTick]);
   // 打开页面时把当前步骤记为已浏览（不产生保存，等用户有操作再保存）。
   useEffect(() => { setProgress(p => p.visited.includes(p.step) ? p : { ...p, visited: [...p.visited, p.step].sort() }); }, [progress.step]);
   const viewRef = () => { setProgress(p => { if (p.referenceViewed) return p; const n = { ...p, referenceViewed: true, visited: [...new Set([...p.visited, 0])] }; latest.current.progress = n; return n; }); if (!readonly) touch(); };
