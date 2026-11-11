@@ -30,7 +30,7 @@ export function WorkCard({ title, experienceTitle, contentVersion, savedAt, sect
 }
 
 /* 体验页里的成果区：预览、返回修改、保存到本机。 */
-export function OutputPanel({ id, data, g, version, answers, status, onEdit }: { id: string; data: any; g: any; version: number; answers: Record<string, any>; status: { missing: { label: string; practice: string }[] }; onEdit: (practiceId: string) => void }) {
+export function OutputPanel({ id, data, g, version, answers, status, onEdit }: { id: string; data: any; g: any; version: number; answers: Record<string, any>; status: { missing: { label: string; practice: string; field?: string }[] }; onEdit: (practiceId: string, fieldId?: string) => void }) {
   const sections = buildSections(g, answers);
   const before = hasBefore(answers) ? buildSections(g, answers, 'pre.') : null;
   const [saved, setSaved] = useState<Work | null>(null), [msg, setMsg] = useState<{ text: string; recovery?: string; bad?: boolean } | null>(null), [persist, setPersist] = useState('');
@@ -57,7 +57,7 @@ export function OutputPanel({ id, data, g, version, answers, status, onEdit }: {
         <div className="row out-edit">{g.output.sections.map((s: any) => <button key={s.heading} type="button" className="btn btn-sm" onClick={() => onEdit(fieldPractice(s.fields[0]))}>返回修改：{s.heading}</button>)}</div>
       </div>
       <aside className="out-side">
-        {!ready ? <div className="notice" role="note"><b>还差 {status.missing.length} 项没写，写完才能保存成果：</b><ul>{status.missing.map(m => <li key={m.label}><button type="button" className="text-btn" onClick={() => onEdit(m.practice)}>{m.label}</button></li>)}</ul></div>
+        {!ready ? <div className="notice" role="note"><b>还差 {status.missing.length} 项没写，写完才能保存成果：</b><ul>{status.missing.map(m => <li key={m.label}><button type="button" className="text-btn" onClick={() => onEdit(m.practice, m.field)}>{m.label}</button></li>)}</ul></div>
           : <button type="button" className="btn btn-primary btn-block" onClick={save} data-testid="save-work">{saved ? (unchanged ? '已保存 · 再保存一次' : '保存修改后的成果') : '保存成果到本机'}</button>}
         {msg && <p className={msg.bad ? 'bad-box' : 'ok-box'} role={msg.bad ? 'alert' : 'status'} style={{ marginTop: 10 }}>{msg.text}{msg.recovery && <><br /><span style={{ fontWeight: 400 }}>怎么办：{msg.recovery}</span></>}</p>}
         {persist && <p className="xs muted" style={{ marginTop: 6 }}>{persist}</p>}
