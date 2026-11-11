@@ -21,7 +21,7 @@ export function Home() {
       <div>
         <span className="pill"><i aria-hidden="true" />AI · 出海 · 互联网 · 大学生免费</span>
         <h1 className="hero-h">先试着做一次工作，<br />再决定要不要走这条路。</h1>
-        <p className="hero-sub">上场把岗位上的一个真实工作场景，做成 5–10 分钟的线上任务：收到任务、看材料、给出你的方案，马上拿到复盘。不用等实习名额，也不用先投简历。</p>
+        <p className="hero-sub">on stage 把岗位上的一个真实工作场景，做成 5–10 分钟的线上任务：收到任务、看材料、给出你的方案，马上拿到复盘。不用等实习名额，也不用先投简历。</p>
         <div className="row">
           <Link className="btn btn-primary btn-lg" href={start}>开始 8 分钟体验 →</Link>
           <Link className="btn btn-lg" href="/experiences">看看有哪些工作</Link>
@@ -91,10 +91,10 @@ export function Catalog({ kind }: { kind: string }) {
   const filtered = source.filter(i => (!['job', 'event'].includes(kind) || status === '' || i.status === status) && (!type || typeOf(i) === type) && (!city || i.data.city === city) && (!direction || i.data.direction === direction) && [i.data.title, i.data.direction, i.data.city, i.data.about, i.data.organizer].join(' ').toLowerCase().includes(q.toLowerCase()));
   if (kind === 'experience') { const o = { quick: 0, deep: 1, simple: 2 } as const; filtered.sort((a, b) => o[expKind(a.data)] - o[expKind(b.data)]); }
   const head: Record<string, [string, string]> = {
-    job: ['实习与校招', '这里目前只有示例岗位，用来展示以后的机会会怎么呈现：不是真实招聘，不能真的投递。上场不收简历。'],
+    job: ['实习与校招', '这里目前只有示例岗位，用来展示以后的机会会怎么呈现：不是真实招聘，不能真的投递。on stage 不收简历。'],
     event: ['黑客松与企业商赛', '这里目前只有示例赛事，用来展示格式：不是真实赛事，不能真的报名。'],
     experience: ['岗位体验', '线上岗位体验：用模拟的工作场景，提前做一次岗位上的事。自愿参加，不是实习，也不影响投递。'],
-    company: ['企业', '了解企业在做什么、有哪些职业方向。以下均为示例企业，上场与它们没有真实合作关系。']
+    company: ['企业', '了解企业在做什么、有哪些职业方向。以下均为示例企业，on stage 与它们没有真实合作关系。']
   };
   const types = kind === 'job' ? [['intern', '实习'], ['campus', '校招']] : kind === 'event' ? [['hack', '黑客松'], ['competition', '企业商赛']] : kind === 'experience' ? [['quick', '短版'], ['deep', '完整版'], ['simple', '简版练习']] : [];
   return <div className="wrap page">
@@ -142,7 +142,7 @@ export function DetailView({ item, items, preview }: { item: Item; items: Item[]
       <div className="tags"><KindBadge item={item} /><StatusBadge item={item} /><Demo on={item.demo} /></div>
       <h1 style={{ fontSize: 'clamp(26px,3.6vw,36px)', fontWeight: 900, marginTop: 10 }}>{d.title}</h1>
       {co && <p className="ink2" style={{ marginTop: 6 }}><Link href={'/companies/' + co.id}>{co.data.title}</Link> · {d.direction}</p>}
-      {item.demo && <p className="warn-box" style={{ marginTop: 14 }}>示例内容：不代表真实企业、真实招聘或真实赛事，也不代表上场与该企业有合作。</p>}
+      {item.demo && <p className="warn-box" style={{ marginTop: 14 }}>示例内容：不代表真实企业、真实招聘或真实赛事，也不代表 on stage 与该企业有合作。</p>}
       {item.kind === 'job' && <>
         <div className="panel" style={{ marginTop: 18 }}><div className="panel-b"><dl className="kv">
           <dt>招聘类型</dt><dd>{d.jobType === 'intern' ? '实习' : '校招'}</dd><dt>工作地点</dt><dd>{d.city}</dd><dt>薪资</dt><dd>{d.salary || '企业未提供'}</dd>
@@ -169,15 +169,15 @@ export function DetailView({ item, items, preview }: { item: Item; items: Item[]
       {item.status === 'published' ? <><div><b style={{ fontSize: 34, color: 'var(--accent)' }} className="tnum">{daysLeft(d.deadline)}</b> <span className="muted">天后截止</span></div>
         <button className="btn btn-primary btn-block" disabled={preview} onClick={async () => { try { setApply(await api('apply/' + id, {})); } catch (e) { toast((e as Error).message, true); } }}>{item.kind === 'job' ? '前往企业官网投递 ↗' : '去主办方页面报名 ↗'}</button></>
         : <><div className="warn-box">已过截止时间（{date(d.deadline)}），投递和报名入口已关闭。</div><button className="btn btn-block" disabled>入口已关闭</button></>}
-      {session?.loginAvailable === false && !session.identity.userId ? <p className="xs muted">试用期间暂未开放登录，收藏功能暂不可用。浏览和查看投递方式不用登录。上场不收简历，跳转不会记为「已投递」。</p> : <>
+      {session?.loginAvailable === false && !session.identity.userId ? <p className="xs muted">试用期间暂未开放登录，收藏功能暂不可用。浏览和查看投递方式不用登录。on stage 不收简历，跳转不会记为「已投递」。</p> : <>
       <button className="btn btn-block" disabled={preview} onClick={favorite} aria-pressed={saved}>{saved ? '已收藏 · 点击取消' : '收藏'}</button>
-      <p className="xs muted">浏览和查看投递方式不用登录；收藏需要登录。上场不收简历，跳转不会记为「已投递」。</p></>}
+      <p className="xs muted">浏览和查看投递方式不用登录；收藏需要登录。on stage 不收简历，跳转不会记为「已投递」。</p></>}
       {item.kind === 'job' && !preview && <button className="text-btn small" onClick={() => setReport(true)}>信息失效或有误？反馈给我们</button>}
     </div></aside>}
     </div>
-    <Modal open={!!apply} title="即将离开上场" onClose={() => setApply(null)} footer={<>{apply?.url ? <><button className="btn" onClick={() => setApply(null)}>取消</button><a className="btn btn-primary" href={apply.url} target="_blank" rel="noopener noreferrer">确认前往 ↗</a></> : <button className="btn btn-primary" onClick={() => setApply(null)}>知道了</button>}</>}>
+    <Modal open={!!apply} title="即将离开 on stage" onClose={() => setApply(null)} footer={<>{apply?.url ? <><button className="btn" onClick={() => setApply(null)}>取消</button><a className="btn btn-primary" href={apply.url} target="_blank" rel="noopener noreferrer">确认前往 ↗</a></> : <button className="btn btn-primary" onClick={() => setApply(null)}>知道了</button>}</>}>
       <p>{apply?.message}</p>
-      <ul className="small ink2" style={{ paddingLeft: 18, margin: 0 }}><li>投递在企业或主办方的渠道完成，上场不会收到你的简历。</li><li>以对方官方页面为准。正规招聘不会向你收费。</li></ul>
+      <ul className="small ink2" style={{ paddingLeft: 18, margin: 0 }}><li>投递在企业或主办方的渠道完成，on stage 不会收到你的简历。</li><li>以对方官方页面为准。正规招聘不会向你收费。</li></ul>
     </Modal>
     <Modal open={report} title="反馈岗位信息失效或有误" onClose={() => setReport(false)} footer={<><button className="btn" onClick={() => setReport(false)}>取消</button><button className="btn btn-primary" onClick={async () => { try { await api('reports/' + id, { reason }); setReport(false); setReason(''); toast('反馈已收到，平台会核验处理'); } catch (e) { toast((e as Error).message, true); } }}>提交反馈</button></>}>
       <label className="field"><span className="label">具体情况（至少 3 个字）</span><textarea className="textarea" value={reason} onChange={e => setReason(e.target.value)} maxLength={1000} /></label>

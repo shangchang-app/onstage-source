@@ -144,7 +144,7 @@ db.transaction(()=>{
     ['xt','星图智能','AI 公司','50–150 人','为中小企业提供 AI 客服、订单和库存自动化方案。',['AI 解决方案','客户成功','商务拓展']],
     ['my','墨言 AI','AI 公司','20–50 人','面向内容创作者和企业市场团队的 AI 写作工具。',['AI 产品运营','增长','商业化']],
     ['lm','Lumo','出海企业','150–300 人','智能小家电品牌，销往日本和欧美。',['海外市场','品牌营销']]
-  ] as const) add(id,'company',{title,industry,size,about,directions,authorized:true,authorizationNote:'演示数据：虚构企业，不代表真实企业关系',officialDomain:'example.com',cooperation:'这是用于演示的虚构企业，上场与它没有真实合作关系。页面上的岗位、体验背景和数据都是示例。'});
+  ] as const) add(id,'company',{title,industry,size,about,directions,authorized:true,authorizationNote:'演示数据：虚构企业，不代表真实企业关系',officialDomain:'example.com',cooperation:'这是用于演示的虚构企业，on stage 与它没有真实合作关系。页面上的岗位、体验背景和数据都是示例。'});
   add('ops-returns','experience',quick,null);
   add('ops-returns-deep','experience',deep,null);
   add('ai-eval','experience',aiEval,null);
@@ -164,7 +164,7 @@ db.transaction(()=>{
   for(const [id,title,co,direction,city,salary,jobType,days] of jobs) add(id,'job',{title,direction,city,salary,jobType,deadline:day(days),source:'企业招聘负责人提供（虚构示例）',applyUrl:'https://example.com/careers/'+id,duties:jobType==='intern'?'整理业务数据，协助团队识别问题。\n参与每周复盘和方案执行。':'参与市场与客户项目，协助团队制定增长计划。',requirements:'本科及以上，专业不限。\n逻辑清晰，愿意学习，能使用表格整理信息。',days:jobType==='intern'?'每周 3–4 天':'',duration:jobType==='intern'?'至少 3 个月':'',graduation:jobType==='campus'?'2027 届':'',related:co==='yc'?['ops-returns','ops-returns-deep','yc-std']:co==='xt'?['xt-std']:['my-quick']},co,id==='j6'?'offline':'published');
   for(const [id,title,co,eventType,city,days] of [
     ['e1','AI Agent 创新黑客松','xt','hack','深圳',12],['e2','AI 应用周末黑客松','my','hack','线上',3],['e3','跨境电商运营挑战赛','yc','competition','线上',25],['e4','出海品牌营销策划大赛','lm','competition','上海',40],['e5','AI for 跨境 黑客松','xt','hack','杭州',18],['e6','新消费品牌出海策划赛','lm','competition','线上',-5]
-  ] as const) add(id,'event',{title,eventType,city,deadline:day(days),organizer:co==='yc'?'远驰汽配（虚构）':'上场示例主办方',eligibility:'在校本科及研究生，可跨专业组队。',prize:'奖励以主办方正式公告为准（本条为示例）',source:'主办方官网（示例）',applyUrl:'https://example.com/events/'+id,about:'围绕真实业务场景，和队友一起把想法做成可展示的方案。'},co);
+  ] as const) add(id,'event',{title,eventType,city,deadline:day(days),organizer:co==='yc'?'远驰汽配（虚构）':'on stage 示例主办方',eligibility:'在校本科及研究生，可跨专业组队。',prize:'奖励以主办方正式公告为准（本条为示例）',source:'主办方官网（示例）',applyUrl:'https://example.com/events/'+id,about:'围绕真实业务场景，和队友一起把想法做成可展示的方案。'},co);
 });
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

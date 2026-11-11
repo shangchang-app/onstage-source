@@ -33,7 +33,6 @@ function current(path: string, href: string) {
   if (href === '/me') return path.startsWith('/me') || path.startsWith('/records') || path.startsWith('/login');
   return path.startsWith(href);
 }
-export const Logo = () => <svg viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="8" /><path d="M7 20h5v-5h4v-5h5" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 
 export function Provider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -103,19 +102,19 @@ export function Provider({ children }: { children: ReactNode }) {
       {session?.mock && <div className="dev-bar" role="note">本地开发 / 测试环境：手机验证码由模拟服务生成并显示在页面上。正式环境不会这样。</div>}
       {blocked && collapsed && <div className="blocked-bar" role="alert">登录身份已变化，保存和提交已暂停。<button onClick={() => window.location.reload()}>重新载入</button></div>}
       <header className="site-head"><div className="wrap head-in">
-        <Link className="brand" href="/" aria-label="上场首页"><Logo /><span className="wm">上场</span><span className="en">ONSTAGE</span></Link>
+        <Link className="brand" href="/" aria-label="on stage 首页"><span className="wm">on stage</span></Link>
         <nav className="nav" aria-label="主导航">{NAV.map(([h, l]) => <Link key={h} href={h} aria-current={current(path, h) ? 'page' : undefined}>{l}</Link>)}</nav>
         {user ? <Link className="user-chip" href="/me">{session?.identity.phone || '管理员'}</Link> : session?.loginAvailable === false ? <span className="badge b-gray" title="试用期间暂未开放登录">试用版</span> : session ? <Link className="btn btn-sm" href={'/login?next=' + encodeURIComponent(path)}>登录</Link> : null}
       </div></header>
       <main id="main" tabIndex={-1}>{children}</main>
       <footer className="foot"><div className="wrap">
-        <div className="brand"><Logo /><span className="wm">上场</span><span className="en">ONSTAGE</span></div>
-        <p>找到机会，提前上场。面向大学生的 AI、出海及互联网职业机会与实践平台。</p>
-        <p>岗位体验是线上模拟的工作场景，自愿参加：不是实习经历、能力认证或录用保证，也不是投递门槛。上场不收集简历。</p>
+        <div className="brand"><span className="wm">on stage</span></div>
+        <p>探索工作，也探索自己。面向大学生的 AI、出海及互联网职业机会与实践平台。</p>
+        <p>岗位体验是线上模拟的工作场景，自愿参加：不是实习经历、能力认证或录用保证，也不是投递门槛。on stage 不收集简历。</p>
         <p><Link href="/cooperate">企业合作</Link>{session?.identity.role === 'admin' && <> · <Link href="/admin">内部后台</Link></>}</p>
         {process.env.NEXT_PUBLIC_VERSION && <p className="xs" data-testid="build-stamp">版本 {process.env.NEXT_PUBLIC_VERSION} · 源码提交 {process.env.NEXT_PUBLIC_COMMIT || '未记录'}</p>}
       </div></footer>
-      <nav className="tabbar" aria-label="底部导航">{NAV.map(([h, l, d]) => <Link key={h} href={h} aria-current={current(path, h) ? 'page' : undefined}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg><span>{l}</span></Link>)}</nav>
+      <nav className="tabbar" aria-label="底部导航">{NAV.map(([h, l, d]) => <Link key={h} href={h} aria-current={current(path, h) ? 'page' : undefined}><span className="ti" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg></span><span>{l}</span></Link>)}</nav>
       <div aria-live="polite" role="status">{toastMsg && <div className={'toast' + (toastMsg.bad ? ' bad' : '')}>{toastMsg.text}</div>}</div>
       <Modal open={blocked && !collapsed} title="登录身份已变化" role="alertdialog" onClose={() => setCollapsed(true)}
         footer={<><button className="btn" onClick={() => setCollapsed(true)}>先收起，复制内容</button><button className="btn btn-primary" onClick={() => window.location.reload()}>重新载入并核对身份</button></>}>

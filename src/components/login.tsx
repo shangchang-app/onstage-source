@@ -49,7 +49,7 @@ export function Login() {
     <div className="row" style={{ marginTop: 16 }}><Link className="btn btn-primary" href={next}>继续</Link><button className="btn" onClick={logout}>退出登录</button></div>
   </div>;
   return <div className="wrap page" style={{ maxWidth: 560 }}>
-    <h1>登录上场</h1>
+    <h1>登录 on stage</h1>
     <p className="lede">用手机号登录。登录后可以收藏机会、跨设备继续岗位体验、保存体验完成记录。</p>
     {!session.loginAvailable && <p className="bad-box" style={{ marginTop: 16 }} role="alert">登录服务暂不可用：试用期间暂未开放登录。浏览内容和岗位体验仍可使用，作答会自动保存在这个浏览器里。</p>}
     {session.mock && <p className="warn-box" style={{ marginTop: 16 }}><b>本地开发 / 测试环境</b>：不会真的发短信，验证码由模拟服务随机生成并显示在下面。正式环境不会显示验证码，也没有固定验证码。</p>}
@@ -71,7 +71,7 @@ export function Login() {
           <li>账号已完成同一版本：这份放进「可恢复的作答」，只能查看。</li>
         </ul>
       </div>
-      <p className="xs muted">上场只用手机号识别你的账号，不收集简历。你的岗位体验作答只有你自己能看到。</p>
+      <p className="xs muted">on stage 只用手机号识别你的账号，不收集简历。你的岗位体验作答只有你自己能看到。</p>
     </div></form>
   </div>;
 }

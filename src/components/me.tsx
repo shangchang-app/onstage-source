@@ -58,10 +58,10 @@ export function Me() {
 
     {user && <p style={{ marginTop: 32 }}><button className="btn" onClick={logout}>退出登录</button></p>}
 
-    <Modal open={!!drop} title="清除这份草稿？" role="alertdialog" onClose={() => setDrop(null)} footer={<><button className="btn" onClick={() => setDrop(null)}>取消</button><button className="btn btn-primary" onClick={() => { try { discardDraft(drop.contentId); setDrop(null); toast('已清除草稿，已保存的成果没有变化'); void load(); } catch (e) { setDrop(null); toast(e instanceof LocalError ? e.message + ' ' + e.recovery : (e as Error).message, true); } }}>清除草稿</button></>}>
+    <Modal open={!!drop} title="清除这份草稿？" role="alertdialog" onClose={() => setDrop(null)} footer={<><button className="btn" onClick={() => setDrop(null)}>取消</button><button className="btn btn-primary btn-danger" onClick={() => { try { discardDraft(drop.contentId); setDrop(null); toast('已清除草稿，已保存的成果没有变化'); void load(); } catch (e) { setDrop(null); toast(e instanceof LocalError ? e.message + ' ' + e.recovery : (e as Error).message, true); } }}>清除草稿</button></>}>
       <p>{drop?.content.data.title}：清除后，这个体验从头开始。<b>已保存的成果不会被删除。</b>如果还没保存成果，建议先回去保存，或者先导出备份。</p>
     </Modal>
-    <Modal open={!!view} title={view ? '可恢复的作答：' + view.title : ''} onClose={() => setView(null)} footer={view && <><button className="btn" onClick={() => remove(view.id)}>删除这份</button><button className="btn btn-primary" onClick={() => restore(view.id, view.content_id)}>恢复为草稿</button></>}>
+    <Modal open={!!view} title={view ? '可恢复的作答：' + view.title : ''} onClose={() => setView(null)} footer={view && <><button className="btn btn-danger" onClick={() => remove(view.id)}>删除这份</button><button className="btn btn-primary" onClick={() => restore(view.id, view.content_id)}>恢复为草稿</button></>}>
       {view && <><p className="small muted">{view.reason} · 保存于 {dateTime(view.created_at)}</p><RecoveryBody r={view} /></>}
     </Modal>
   </div>;

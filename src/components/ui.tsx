@@ -36,7 +36,7 @@ export function KindBadge({ item }: { item: Item }) {
   if (item.kind === 'job') return <span className="badge b-blue">{d.jobType === 'intern' ? '实习' : '校招'}</span>;
   if (item.kind === 'event') return <span className="badge b-orange">{d.eventType === 'hack' ? '黑客松' : '企业商赛'}</span>;
   if (item.kind === 'experience') { const k = expKind(d); return <>
-    <span className={'badge ' + (k === 'quick' ? 'b-orange' : k === 'deep' ? 'b-blue' : 'b-gray')}>{k === 'quick' ? '短版 · 约 ' + d.minutes + ' 分钟' : k === 'deep' ? '完整版' : '简版练习'}</span>
+    <span className={'badge ' + (k === 'quick' ? 'b-line' : k === 'deep' ? 'b-orange' : 'b-gray')}>{k === 'quick' ? '短版 · 约 ' + d.minutes + ' 分钟' : k === 'deep' ? '完整版' : '简版练习'}</span>
     <span className="badge b-gray">{d.sourceType === 'cocreate' ? (item.demo ? '企业共创（演示）' : '企业共创') : '平台制作'}</span>
   </>; }
   return <span className="badge b-gray">企业</span>;

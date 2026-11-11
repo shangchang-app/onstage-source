@@ -124,7 +124,7 @@ async function route(path: string, method: string, body: Json | null) {
     }
     if (parts[0] === 'apply') {
       const c = await content(parts[1]); if (!['job', 'event'].includes(c.kind) || c.status !== 'published') throw new Fail(409, 'UNAVAILABLE', '该机会已截止或下架，无法继续');
-      return { demo: true, message: '这是示例信息，仅演示投递流程：不会发送邮件，也不会跳转到真实招聘页面。上场不会把这次点击记为「已投递」。' };
+      return { demo: true, message: '这是示例信息，仅演示投递流程：不会发送邮件，也不会跳转到真实招聘页面。on stage 不会把这次点击记为「已投递」。' };
     }
     if (parts[0] === 'experiences' && parts[2] === 'submit') throw new Fail(401, 'LOGIN_REQUIRED', '试玩版暂不保存完成记录，你的作答仍保存在这个浏览器里');
     if (parts[0] === 'favorites') throw new Fail(401, 'LOGIN_REQUIRED', '试玩版暂不支持收藏');

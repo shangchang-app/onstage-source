@@ -21,7 +21,7 @@ const FIELDS: Record<string, F[]> = {
     { k: 'title', label: '企业名称', type: 'text', req: true }, { k: 'industry', label: '行业', type: 'text' }, { k: 'size', label: '规模', type: 'text' },
     { k: 'about', label: '企业介绍', type: 'textarea' }, { k: 'directions', label: '业务与职业方向（每行一个）', type: 'lines' },
     { k: 'officialDomain', label: '官网域名', type: 'text', hint: '例如 example.com。真实岗位的投递链接必须属于这个域名。' },
-    { k: 'cooperation', label: '合作说明（公开显示）', type: 'textarea', hint: '没有真实合作时，写明「与上场没有合作关系」。' },
+    { k: 'cooperation', label: '合作说明（公开显示）', type: 'textarea', hint: '没有真实合作时，写明「与 on stage 没有合作关系」。' },
     { k: 'authorized', label: '已取得企业的展示授权', type: 'checkbox', req: true },
     { k: 'authorizationNote', label: '授权依据（谁、何时、以什么方式授权；不公开）', type: 'textarea', req: true }
   ],

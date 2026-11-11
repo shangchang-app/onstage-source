@@ -85,14 +85,14 @@ export function WorkPage() {
     <div className="row print-hide" style={{ marginTop: 16 }}>
       <button type="button" className="btn btn-primary" onClick={() => window.print()}>打印 / 存为 PDF</button>
       <Link className="btn" href={'/experiences/' + work.experienceId + '/work'}>回到体验继续修改</Link>
-      <button type="button" className="btn" onClick={() => setAsk(true)}>删除这份成果</button>
+      <button type="button" className="btn btn-danger" onClick={() => setAsk(true)}>删除这份成果</button>
     </div>
     <p className="xs muted print-hide" style={{ marginTop: 8 }}>第一次保存：{dateTime(work.createdAt)} · 最近保存：{dateTime(work.updatedAt)}</p>
     {(work.revisions.length > 0 || work.before) && <section className="sec-card print-hide" aria-labelledby="rev-h"><h2 id="rev-h">修改记录</h2>
       {work.before && <details className="howto"><summary>看参考思路之前写的版本</summary>{work.before.map(s => <div key={s.heading}><b className="small">{s.heading}</b>{s.items.map((it, i) => <p className="small pre" key={i}><span className="muted">{it.label}：</span>{it.text}</p>)}</div>)}</details>}
       {work.revisions.length > 0 && <ul className="small" style={{ marginTop: 10 }}>{work.revisions.map((r, i) => <li key={r.at + i}><button type="button" className="text-btn" onClick={() => { setRev(i); window.scrollTo(0, 0); }}>{dateTime(r.at)} 保存的版本</button></li>)}</ul>}
     </section>}
-    <Modal open={ask} title="删除这份成果？" role="alertdialog" onClose={() => setAsk(false)} footer={<><button className="btn" onClick={() => setAsk(false)}>取消</button><button className="btn btn-primary" onClick={() => { try { deleteWork(work.id); setAsk(false); setGone(true); } catch (e) { setErr(errText(e)); setAsk(false); } }}>删除</button></>}>
+    <Modal open={ask} title="删除这份成果？" role="alertdialog" onClose={() => setAsk(false)} footer={<><button className="btn" onClick={() => setAsk(false)}>取消</button><button className="btn btn-primary btn-danger" onClick={() => { try { deleteWork(work.id); setAsk(false); setGone(true); } catch (e) { setErr(errText(e)); setAsk(false); } }}>删除</button></>}>
       <p>删除后不能恢复（除非你导出过备份）。草稿不受影响。</p>
     </Modal>
     {err && <p className="bad-box" role="alert" style={{ marginTop: 12 }}>{err.text} {err.recovery}</p>}

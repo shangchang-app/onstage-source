@@ -13,7 +13,7 @@ const db = new DatabaseSync(file, { readOnly: true });
 const ok = (db.prepare('PRAGMA integrity_check').get() as any)?.integrity_check;
 const hasContent = db.prepare("SELECT 1 FROM sqlite_master WHERE name='content'").get();
 db.close();
-if (ok !== 'ok' || !hasContent) { console.error('这个文件不是有效的上场数据库备份，已停止'); process.exit(1); }
+if (ok !== 'ok' || !hasContent) { console.error('这个文件不是有效的 on stage 数据库备份，已停止'); process.exit(1); }
 copyFileSync(file, target + '.restore-pending');
 console.log('已准备恢复：' + file);
 console.log('下一步：重启服务。启动时会自动替换数据库，原数据库另存为 ' + target + '.before-restore-时间');

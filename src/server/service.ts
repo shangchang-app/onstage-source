@@ -203,11 +203,11 @@ export class Service {
   apply(ctx: Identity,id:string) {
     return this.store.transaction(() => {
       const c = this.content(id); demand(['job','event'].includes(c.kind) && c.status==='published',409,'UNAVAILABLE','该机会已截止或下架，无法继续');
-      if(c.demo) { this.store.run('INSERT INTO clicks(content_id,owner,action,created_at) VALUES (?,?,?,?)',id,ctx.owner,'demo_apply',now()); return {demo:true,message:'这是示例信息，仅演示投递流程：不会发送邮件，也不会跳转到真实招聘页面。上场不会把这次点击记为「已投递」。'}; }
+      if(c.demo) { this.store.run('INSERT INTO clicks(content_id,owner,action,created_at) VALUES (?,?,?,?)',id,ctx.owner,'demo_apply',now()); return {demo:true,message:'这是示例信息，仅演示投递流程：不会发送邮件，也不会跳转到真实招聘页面。on stage 不会把这次点击记为「已投递」。'}; }
       const domain = c.companyId ? this.content(c.companyId).data.officialDomain : undefined;
       const url = validateDestination(c.data.applyUrl,domain);
       this.store.run('INSERT INTO clicks(content_id,owner,action,created_at) VALUES (?,?,?,?)',id,ctx.owner,c.kind==='job'?'click_apply':'event_click',now());
-      return {demo:false,url,message:'即将离开上场。投递由企业官网或招聘邮箱接收；上场仅记录点击，不代表已投递。'};
+      return {demo:false,url,message:'即将离开 on stage。投递由企业官网或招聘邮箱接收；on stage 仅记录点击，不代表已投递。'};
     });
   }
   report(ctx: Identity,id:string,input:unknown) {

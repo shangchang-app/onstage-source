@@ -25,14 +25,14 @@ export function Cooperate() {
   return <div className="wrap page" style={{ maxWidth: 980 }}>
     <div className="ph"><div className="eyebrow">企业合作</div><h1>把你们的一个工作场景，做成学生能上手的短体验</h1>
       <p className="lede">学生用 5–10 分钟做一次你们岗位上的真实决策，拿到具体的复盘；你们拿到匿名的汇总反馈，了解学生怎么看这份工作。下面的流程、素材清单和样例，说明合作要提供什么、最后能得到什么。</p>
-      <p className="small muted" style={{ marginTop: 8 }}>目前上场还没有合作企业。页面上的样例都由平台编写，使用模拟数据，标有「示例」。</p></div>
+      <p className="small muted" style={{ marginTop: 8 }}>目前 on stage 还没有合作企业。页面上的样例都由平台编写，使用模拟数据，标有「示例」。</p></div>
 
     <section className="sec-card" aria-labelledby="co-flow"><h2 id="co-flow">合作怎么进行</h2>
       <ol className="co-steps">
         <li><span className="co-who">企业</span><b>提供场景</b>一个可以公开或脱敏的岗位场景，和几份材料。</li>
-        <li><span className="co-who">上场</span><b>制作体验</b>写任务消息、整理材料、设计行动选项和复盘规则。</li>
+        <li><span className="co-who">on stage</span><b>制作体验</b>写任务消息、整理材料、设计行动选项和复盘规则。</li>
         <li><span className="co-who">企业</span><b>审核业务内容</b>确认业务逻辑和参考思路，没确认不上线、不署名。</li>
-        <li><span className="co-who">学生 · 上场</span><b>参与与汇总</b>学生自愿参与；平台只汇总匿名数据。</li>
+        <li><span className="co-who">学生 · on stage</span><b>参与与汇总</b>学生自愿参与；平台只汇总匿名数据。</li>
         <li><span className="co-who">双方</span><b>决定下一步</b>看反馈再决定是否办活动、商赛或招聘合作。</li>
       </ol></section>
 
@@ -49,7 +49,7 @@ export function Cooperate() {
         <ul>
           <li>客户隐私、真实交易明细、未公开的商业机密。</li>
           <li>让学生免费完成真实工作交付。体验只是模拟。</li>
-          <li>学生名单或简历。上场不做人才库，不给学生排名。</li>
+          <li>学生名单或简历。on stage 不做人才库，不给学生排名。</li>
         </ul></section>
     </div>
 
@@ -96,7 +96,7 @@ export function Cooperate() {
       </ul></section>
 
     {session?.staticTrial ? <section className="sec-card" aria-labelledby="co-form"><h2 id="co-form">留下合作意向</h2>
-      {COOP_URL ? <><p className="small ink2">合作意向通过外部问卷收集。点击后会离开上场，在问卷页面填写和提交。</p><p style={{ marginTop: 10 }}><a className="btn btn-primary" href={COOP_URL} target="_blank" rel="noopener noreferrer">填写合作意向问卷 ↗</a></p></>
+      {COOP_URL ? <><p className="small ink2">合作意向通过外部问卷收集。点击后会离开 on stage，在问卷页面填写和提交。</p><p style={{ marginTop: 10 }}><a className="btn btn-primary" href={COOP_URL} target="_blank" rel="noopener noreferrer">填写合作意向问卷 ↗</a></p></>
         : <p className="notice" data-testid="coop-pending"><b>在线提交暂未开通（待配置）。</b>这个试玩版没有接收表单的服务器，所以这里不放提交按钮，避免你以为已经提交成功。开通后会在这里提供提交入口。</p>}
     </section> : done ? <section className="sec-card" role="status"><h2>已收到你的合作意向</h2>
       <p>状态：<span className="badge b-blue">待联系</span>　编号 {String(done.id).slice(0, 8)}</p>
@@ -108,7 +108,7 @@ export function Cooperate() {
           <label className="field"><span className="label">手机号或工作邮箱</span><input className="input" required maxLength={100} value={f.contact} onChange={e => set('contact', e.target.value)} /></label>
           <label className="field"><span className="label">想介绍的岗位或工作场景</span><textarea className="textarea" rows={3} required maxLength={1000} value={f.roles} onChange={e => set('roles', e.target.value)} placeholder="例如：跨境电商运营，日常要看店铺数据、处理差评" /></label>
           <label className="field"><span className="label">其他说明（选填）</span><textarea className="textarea" rows={2} maxLength={2000} value={f.note} onChange={e => set('note', e.target.value)} /></label>
-          <label className="choice"><input type="checkbox" checked={f.consent} onChange={e => set('consent', e.target.checked)} /><span>我同意上场为合作沟通使用以上联系方式，不用于其他用途。</span></label>
+          <label className="choice"><input type="checkbox" checked={f.consent} onChange={e => set('consent', e.target.checked)} /><span>我同意 on stage 为合作沟通使用以上联系方式，不用于其他用途。</span></label>
         </div>
         {error && <p className="err" role="alert" style={{ marginTop: 10 }}>{error}</p>}
         <button className="btn btn-primary" style={{ marginTop: 14 }} disabled={busy}>{busy ? '正在提交…' : '提交合作意向'}</button>

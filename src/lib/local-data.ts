@@ -75,16 +75,16 @@ export async function requestPersist(): Promise<'granted' | 'denied' | 'unsuppor
 /* ---------- 备份 ---------- */
 export function exportBackup() {
   const draftsDb = (() => { try { return readKey(DRAFT_KEY); } catch { return null; } })();
-  return { format: BACKUP_FORMAT, version: 1, exportedAt: new Date().toISOString(), note: '上场 ONSTAGE 本机备份：包含成果和这个浏览器里的草稿。教学模拟作品，不是实习经历或能力认证。', works: readWorks(), drafts: draftsDb?.drafts ? Object.values(draftsDb.drafts) : [] };
+  return { format: BACKUP_FORMAT, version: 1, exportedAt: new Date().toISOString(), note: 'on stage 本机备份：包含成果和这个浏览器里的草稿。教学模拟作品，不是实习经历或能力认证。', works: readWorks(), drafts: draftsDb?.drafts ? Object.values(draftsDb.drafts) : [] };
 }
 function validSections(x: unknown): x is WorkSection[] { return Array.isArray(x) && x.every(s => s && typeof s.heading === 'string' && Array.isArray(s.items) && s.items.every((i: any) => i && typeof i.label === 'string' && typeof i.text === 'string')); }
 function validWork(w: any): w is Work { return !!w && typeof w.id === 'string' && typeof w.experienceId === 'string' && typeof w.experienceTitle === 'string' && Number.isInteger(w.contentVersion) && typeof w.updatedAt === 'string' && validSections(w.sections) && (w.before === null || w.before === undefined || validSections(w.before)) && Array.isArray(w.revisions ?? []); }
 function validDraft(d: any) { return !!d && typeof d.content_id === 'string' && /^[a-zA-Z0-9-]{1,100}$/.test(d.content_id) && Number.isInteger(d.content_version) && d.answers && typeof d.answers === 'object' && !Array.isArray(d.answers); }
 
 export function importBackup(text: string) {
-  if (text.length > MAX_IMPORT_BYTES) throw new LocalError('IMPORT_TOO_LARGE', '文件太大（超过 5 MB），不像是上场的备份文件。', '请选择从「我的 → 导出备份」得到的 .json 文件。');
+  if (text.length > MAX_IMPORT_BYTES) throw new LocalError('IMPORT_TOO_LARGE', '文件太大（超过 5 MB），不像是 on stage 的备份文件。', '请选择从「我的 → 导出备份」得到的 .json 文件。');
   let data: any; try { data = JSON.parse(text); } catch { throw new LocalError('IMPORT_FORMAT', '这个文件不是有效的备份文件（无法读取）。', '请选择从「我的 → 导出备份」得到的 .json 文件，不要用其他软件修改它。'); }
-  if (data?.format !== BACKUP_FORMAT) throw new LocalError('IMPORT_FORMAT', '这个文件不是上场的备份文件。', '请选择从「我的 → 导出备份」得到的 .json 文件。');
+  if (data?.format !== BACKUP_FORMAT) throw new LocalError('IMPORT_FORMAT', '这个文件不是 on stage 的备份文件。', '请选择从「我的 → 导出备份」得到的 .json 文件。');
   if (data.version !== 1) throw new LocalError('IMPORT_VERSION', '这个备份来自不认识的版本，暂时不能导入。', '请用同一版本的网站导出备份，或联系我们。');
   const works = Array.isArray(data.works) ? data.works : [], drafts = Array.isArray(data.drafts) ? data.drafts : [];
   const goodWorks = works.filter(validWork), goodDrafts = drafts.filter(validDraft);
