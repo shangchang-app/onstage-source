@@ -53,6 +53,16 @@ async function fillAll(p) {
   await p.fill('#f-p5-first', '抽查新增车型的适配数据，先下架有疑问的车型。');
   await p.fill('#f-p5-second', '看广告搜索词报告，排除不相关的词。');
   await p.fill('#f-p6-missing', '退货订单对应的车型（找客服/仓库），适配数据来源（找供应商）。');
+  await p.fill('#f-p0-rate', '3.7%');
+  await p.fill('#f-p4-hif', '新增车型的适配信息有错');
+  await p.fill('#f-p4-hsee', '新增车型的退货率明显高于原有车型');
+  await p.fill('#f-p4-hnot', '两类车型退货率差不多');
+  await p.fill('#f-p5-measure', '两周后不匹配退货占订单比例降到 2% 以下');
+  await step(p, 6);
+  await p.fill('#f-t-before', '5.1%'); await p.fill('#f-t-after', '5.1%');
+  await p.check('label.choice:has-text("退货率基本没变") input');
+  await p.fill('#f-t-hypo', '如果是包装问题，破损类退货占比应该上升');
+  await step(p, 4);
 }
 
 (async () => {
@@ -71,7 +81,7 @@ async function fillAll(p) {
     await p.click('#pr-p1 .term >> nth=0'); ok(await p.locator('#pr-p1 .term-def').isVisible(), '术语解释没有显示');
     await fillAll(p); await waitSaved(p);
     await shot(p, 'flow-04-practice');
-    ok((await p.locator('.stepper li:nth-child(4) .s').textContent()).includes('已作答 10/10'), '步骤 4 状态不是已作答 10/10');
+    ok((await p.locator('.stepper li:nth-child(4) .s').textContent()).includes('已作答 19/19'), '步骤 4 状态不是已作答 19/19：' + await p.locator('.stepper li:nth-child(4) .s').textContent());
     await step(p, 5); await shot(p, 'flow-05-reference');
     await step(p, 6);
     await p.check('label.choice:has-text("多了不少") input'); await p.check('label.choice:has-text("相关的实习和校招") input');

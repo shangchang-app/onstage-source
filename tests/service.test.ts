@@ -28,7 +28,7 @@ async function login(env: Env, phone: string, from?: { token: string; id: Identi
   return { token: s.token, id: s.identity, merge: s.merge };
 }
 const code = (fn: () => unknown) => { try { fn(); return 'OK'; } catch (e) { return e instanceof Problem ? e.code : (e as Error).message; } };
-const fullAnswers = { 'p1.before': '约 4.7%', 'p1.after': '约 11.1%', 'p1.other': '访问量涨了约 7 成，转化率从 3.7% 降到 3.0%', 'p2.when': '第 4 周；同周扩了适配车型、开了广泛匹配广告、降价', 'p3.main': '车型不匹配占 58%，评论提到凯美瑞、雅阁装不上', 'p4.causes': ['新增车型的适配数据有错', '广泛匹配广告带来了不精准的买家'], 'p4.why': '降价解释不了车型不匹配', 'p5.first': '新增 75 款车型先标为待核对', 'p5.second': '暂停广泛匹配广告', 'p6.missing': '按车型拆分的退货率，找数据同事要' };
+const fullAnswers = { 'p1.before': '约 4.7%', 'p1.after': '约 11.1%', 'p1.other': '访问量涨了约 7 成，转化率从 3.7% 降到 3.0%', 'p2.when': '第 4 周；同周扩了适配车型、开了广泛匹配广告、降价', 'p3.main': '车型不匹配占 58%，评论提到凯美瑞、雅阁装不上', 'p4.causes': ['新增车型的适配数据有错', '广泛匹配广告带来了不精准的买家'], 'p4.why': '降价解释不了车型不匹配', 'p5.first': '新增 75 款车型先标为待核对', 'p5.second': '暂停广泛匹配广告', 'p6.missing': '按车型拆分的退货率，找数据同事要', 'p0.rate': '3.7%', 'p4.hif': '新增车型适配有错', 'p4.hsee': '新增车型退货率更高', 'p4.hnot': '两者差不多', 'p5.measure': '两周后不匹配比例降到 2% 以下', 't.before': '5.1%', 't.after': '5.1%', 't.judge': ['退货率基本没变，退货变多主要是因为订单变多了'], 't.hypo': '如果是包装问题，破损类退货应上升' };
 const G = 'ops-returns-deep';
 
 test('只浏览不作答：不会生成完成记录', async () => {
@@ -50,7 +50,7 @@ test('完整作答后提交：生成绑定账号和版本的记录；重复提�
   const r = env.svc.submit(u.id, G, { version: d2.version, contentVersion: 1, reflection: { understand: 'yes', likes: ['读数据'], next: ['jobs'] } });
   assert.equal(r.duplicate, false);
   const rec = env.svc.record(u.id, r.id);
-  assert.equal(rec.owner, u.id.userId); assert.equal(rec.content_version, 1); assert.equal(rec.snapshot.data.title, '深度版：退货率上升，写一页给主管的说明');
+  assert.equal(rec.owner, u.id.userId); assert.equal(rec.content_version, 1); assert.equal(rec.snapshot.data.title, '深度版：退货率上升，写一份问题诊断与行动建议');
   assert.equal(rec.reflection.understand, 'yes');
   assert.equal(env.svc.draft(u.id, G), null, '提交后草稿移除');
   assert.equal(env.svc.submit(u.id, G, { version: 1, contentVersion: 1 }).duplicate, true);
@@ -160,7 +160,7 @@ test('内容更新：发布新版本不改变历史记录；旧版草稿可以�
   env.svc.reviewVersion(ad, G, 2, { action: 'approve', note: '已核对' });
   env.svc.publishVersion(ad, G, 2);
   assert.equal(env.svc.content(G).version, 2);
-  assert.equal(env.svc.record(done.id, rec.id).snapshot.data.title, '深度版：退货率上升，写一页给主管的说明', '历史记录仍是第 1 版');
+  assert.equal(env.svc.record(done.id, rec.id).snapshot.data.title, '深度版：退货率上升，写一份问题诊断与行动建议', '历史记录仍是第 1 版');
   assert.throws(() => env.store.run("UPDATE experience_versions SET data='{}' WHERE experience_id=? AND version=1", G), /immutable/);
   // 做到一半的学生：继续使用第 1 版
   const gd = env.svc.guide(midway.id, G) as any; assert.equal(gd.version, 1); assert.equal(gd.outdated, true);

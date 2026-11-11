@@ -36,7 +36,7 @@ export function KindBadge({ item }: { item: Item }) {
   if (item.kind === 'job') return <span className="badge b-blue">{d.jobType === 'intern' ? '实习' : '校招'}</span>;
   if (item.kind === 'event') return <span className="badge b-orange">{d.eventType === 'hack' ? '黑客松' : '企业商赛'}</span>;
   if (item.kind === 'experience') { const k = expKind(d); return <>
-    <span className={'badge ' + (k === 'quick' ? 'b-orange' : k === 'deep' ? 'b-blue' : 'b-gray')}>{k === 'quick' ? '短体验' : k === 'deep' ? '深度版' : '简版练习'}</span>
+    <span className={'badge ' + (k === 'quick' ? 'b-orange' : k === 'deep' ? 'b-blue' : 'b-gray')}>{k === 'quick' ? '短体验' : k === 'deep' ? '完整体验' : '简版练习'}</span>
     <span className="badge b-gray">{d.sourceType === 'cocreate' ? (item.demo ? '企业共创（演示）' : '企业共创') : '平台制作'}</span>
   </>; }
   return <span className="badge b-gray">企业</span>;
@@ -48,8 +48,8 @@ export function Card({ item, company }: { item: Item; company?: Item }) {
   if (item.kind === 'experience') { const k = expKind(d); return <Link className={'card' + (k === 'quick' ? ' card-feature' : '')} href={'/experiences/' + item.id}>
     <div className="tags"><KindBadge item={item} /><Demo on={item.demo} /></div>
     <div><div className="eyebrow">{d.direction}</div><h3>{d.title}</h3></div>
-    <dl className="facts"><div><dt>时长</dt><dd>约 {d.minutes} 分钟</dd></div><div><dt>难度</dt><dd>{String(d.level || '').split(' · ').pop()}</dd></div><div><dt>成果</dt><dd>{d.deliverable || '文字作答 + 参考思路'}</dd></div></dl>
-    <div className="card-foot"><span className="muted">{k === 'quick' ? '收到任务 → 看材料 → 行动与理由 → 复盘' : k === 'deep' ? '6 步：认识岗位 → 示范 → 任务 → 尝试 → 参考 → 总结' : '只有任务和参考思路'}</span><span className="go">{k === 'simple' ? '看看 →' : '开始 →'}</span></div>
+    <dl className="facts"><div><dt>时长</dt><dd>约 {d.minutes} 分钟，可以暂停</dd></div><div><dt>基础</dt><dd>{String(d.level || '').split(' · ').pop()}</dd></div>{d.learn?.[0] && k !== 'simple' && <div><dt>学到</dt><dd>{d.learn[0]}</dd></div>}<div><dt>成果</dt><dd>{d.deliverable || '文字作答 + 参考思路'}</dd></div></dl>
+    <div className="card-foot"><span className="muted">{k === 'quick' ? '收到任务 → 看材料 → 行动与理由 → 复盘' : k === 'deep' ? '6 步：认识岗位 → 示范学方法 → 任务 → 尝试 → 参考 → 迁移练习与成果' : '只有任务和参考思路'}</span><span className="go">{k === 'simple' ? '看看 →' : '开始 →'}</span></div>
   </Link>; }
   if (item.kind === 'company') return <Link className="card" href={'/companies/' + item.id}>
     <div className="tags"><KindBadge item={item} /><Demo on={item.demo} /></div>

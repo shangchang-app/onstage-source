@@ -1,6 +1,6 @@
 {
   "name": "onstage",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -19,7 +19,7 @@
     "admin:link": "tsx scripts/admin-link.ts",
     "backup": "tsx scripts/backup.ts",
     "restore": "tsx scripts/restore.ts",
-    "test": "tsx --test tests/service.test.ts tests/deploy.test.ts tests/quick.test.ts",
+    "test": "tsx --test tests/service.test.ts tests/deploy.test.ts tests/quick.test.ts tests/v16.test.ts",
     "test:e2e": "node tests/e2e/run.mjs",
     "test:e2e:screens": "node tests/e2e/run.mjs --mode=screens",
     "test:deploy": "node tests/e2e/run.mjs --mode=deploy",

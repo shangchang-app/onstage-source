@@ -6,6 +6,8 @@ import { ApiError, useSession } from './session';
 import { Modal } from './modal';
 import { AnswerList, ErrorBox, Grid, Loading, Material, QUICK_STEPS, STEPS, Terms, dateTime, guestSaveNote, useCatalog } from './ui';
 import { QuickWork } from './quick';
+import { OutputPanel } from './output';
+import { checkChoices, checkNumber } from '@/lib/rule-check';
 
 type Answers = Record<string, string | string[]>;
 type Progress = { step: number; visited: number[]; referenceViewed: boolean; hintsOpened: string[] };
@@ -144,7 +146,18 @@ export function Work({ id }: { id: string }) {
 
   const readonly = !guide || guide.unavailable || ['conflict', 'gone', 'offline', 'blocked'].includes(save.kind);
   const setAnswer = (k: string, v: string | string[]) => { if (readonly) return; setAnswers(a => { const n = { ...a, [k]: v }; latest.current.answers = n; return n; }); touch(); };
+  /* 第一次去看参考思路时，把当时的作答留一份「看参考前的版本」（pre.*），之后修改也能对比。 */
+  const snapshotPre = () => {
+    const gq = guide?.data?.guide; if (!gq?.output) return;
+    setAnswers(a => {
+      if (Object.keys(a).some(k => k.startsWith('pre.'))) return a;
+      const filled = gq.practice.flatMap((p: any) => p.fields.map((f: any) => f.id)).filter((f: string) => filledField(a[f]));
+      if (!filled.length) return a;
+      const n: Answers = { ...a }; for (const f of filled) n['pre.' + f] = a[f]; latest.current.answers = n; return n;
+    });
+  };
   const go = (step: number) => {
+    if (!readonly && step === (guide?.data?.guide?.quick ? 3 : 4)) snapshotPre();
     setProgress(p => { const n = { ...p, step, visited: [...new Set([...p.visited, p.step, step])].sort(), referenceViewed: p.referenceViewed || step === (guide?.data?.guide?.quick ? 3 : 4) }; latest.current.progress = n; return n; });
     if (!readonly) touch();
     window.scrollTo({ top: 0, behavior: 'auto' }); setTimeout(() => heading.current?.focus(), 0);
@@ -213,11 +226,18 @@ export function Work({ id }: { id: string }) {
             <p className="small ink2">完成记录只表示你完成了这次模拟体验，<b>不代表实习经历或职业资格</b>，也不会发给任何企业。</p>
             <p className="small" style={{ marginTop: 8 }}>作答进度：{status.done} / {status.total} 项{status.done === status.total ? ' · 都写好了' : ''}</p>
             {status.missing.length > 0 && <div className="notice" style={{ marginTop: 10 }}><b>还差这些没写：</b><ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>{status.missing.map((m: any) => <li key={m.label}>{guided ? <button className="text-btn" onClick={() => { go(quick ? 2 : 3); setTimeout(() => document.getElementById('pr-' + m.practice)?.scrollIntoView({ block: 'start' }), 50); }}>{m.label}</button> : m.label}</li>)}</ul><p className="xs muted" style={{ marginTop: 6 }}>只看内容、不作答，不会生成完成记录。每项至少写两个字即可，没有标准答案。</p></div>}
-            {!user && session?.loginAvailable === false ? <div className="notice" style={{ marginTop: 12 }} data-testid="trial-note"><b>试用期间暂未开放登录，完成记录暂时不能保存。</b>{guestSaveNote(session.sessionDays)}</div>
+            {!user && session?.loginAvailable === false ? <div className="notice" style={{ marginTop: 12 }} data-testid="trial-note"><b>{guided ? '这个体验没有成果页。' : '简版练习只有任务和参考思路，不生成成果。'}</b>你的作答会自动保存在这个浏览器里。{guestSaveNote(session.sessionDays)}</div>
               : !user ? <div className="notice" style={{ marginTop: 12 }}>保存完成记录需要登录。登录后，你在这台设备上写的作答会合并到账号里（规则见登录页）。<div style={{ marginTop: 10 }}><Link className="btn btn-primary" href={'/login?next=' + encodeURIComponent('/experiences/' + id + '/work')}>登录后保存记录</Link></div></div>
               : <div className="row" style={{ marginTop: 12 }}><button className="btn btn-primary" disabled={submitting || readonly || status.missing.length > 0} onClick={submit}>{submitting ? '正在保存…' : '完成并保存记录'}</button>{done && <span className="small muted">已完成过，再点只会打开原记录</span>}</div>}
             {submitError && <p className="err" role="alert" style={{ marginTop: 8 }}>{submitError.text}</p>}
           </section>;
+  const editAt = (practiceId: string) => {
+    if (quick) return go(2);
+    const p = g.practice.find((x: any) => x.id === practiceId); go(p?.when === 'transfer' ? 5 : 3);
+    setTimeout(() => document.getElementById('pr-' + practiceId)?.scrollIntoView({ block: 'start' }), 60);
+  };
+  const outputBlock = guided && g.output ? <OutputPanel id={id} data={data} g={g} version={guide.version} answers={answers} status={status} onEdit={editAt} /> : null;
+  const finishArea = <>{outputBlock}{session?.staticTrial && outputBlock ? null : finishBlock}</>;
 
   return <>
     <div className="work-head">
@@ -262,10 +282,10 @@ export function Work({ id }: { id: string }) {
             {step === 2 && <BriefStep g={g} />}
             {step === 3 && <PracticeStep g={g} answers={answers} set={setAnswer} readonly={readonly} opened={progress.hintsOpened} openHint={openHint} openMats={() => setMats(true)} />}
             {step === 4 && <ReferenceStep g={g} data={data} answers={answers} status={status} checks={checks} setChecks={setChecks} go={go} />}
-            {step === 5 && <WrapStep data={data} reflection={reflection} setRefl={setRefl} relatedJobs={relatedJobs} relatedExps={relatedExps} company={guide.company} items={items} />}
+            {step === 5 && <>{g.practice.some((p: any) => p.when === 'transfer') && <PracticeStep when="transfer" g={g} answers={answers} set={setAnswer} readonly={readonly} opened={progress.hintsOpened} openHint={openHint} openMats={() => setMats(true)} />}<WrapStep data={data} reflection={reflection} setRefl={setRefl} relatedExps={relatedExps} items={items} />{finishArea}<ContinueLearning relatedExps={relatedExps} /></>}
           </>}
 
-          {(!guided || step === 5) && finishBlock}
+          {!guided && finishArea}
 
           {guided && <nav className="nav-steps" aria-label="上一步和下一步">
             {step > 0 ? <button className="btn" onClick={() => go(step - 1)}>← 上一步：{STEPS[step - 1]}</button> : <span />}
@@ -286,7 +306,7 @@ export function Work({ id }: { id: string }) {
       </div>}
     </div>
     {quick && <QuickWork id={id} data={data} g={g} answers={answers} set={setAnswer} readonly={readonly} progress={progress} go={go} openHint={openHint} heading={heading}
-      reflection={reflection} setRefl={setRefl} finish={finishBlock} relatedExps={relatedExps} relatedJobs={relatedJobs} items={items} lastField={lastField}
+      reflection={reflection} setRefl={setRefl} finish={finishArea} relatedExps={relatedExps} relatedJobs={relatedJobs} items={items} lastField={lastField}
       saveLabel={<span className={'save-state ' + cls} role="status">第 {step + 1} 步 · {label}</span>} />}
   </>;
 }
@@ -313,6 +333,9 @@ export function DemoStep({ g }: { g: any }) {
     <section className="sec-card"><h2>思考过程</h2><ol className="thinking">{d.thinking.map((t: any) => <li key={t.step}><b>{t.step}</b><p style={{ margin: '4px 0 0' }}>{t.text}</p></li>)}</ol>
       <Terms names={d.glossary.map((t: any) => t.term)} glossary={d.glossary} /></section>
     <section className="sec-card"><h2>示例成果</h2><div className="output">{d.output}</div><p className="hint" style={{ marginTop: 8 }}>这是一种合理的写法，不是唯一标准。</p></section>
+    {g.lessons?.length > 0 && <section className="sec-card lessons" aria-labelledby="lessons-h"><h2 id="lessons-h">这次要学的 {g.lessons.length} 个方法</h2>
+      <p className="small ink2">后面的任务用的是另一组材料，不能照抄示范。每一步都会提醒你用到哪个方法。</p>
+      <ol>{g.lessons.map((l: any) => <li key={l.id}><b>{l.title}</b><p className="small">{l.point}</p>{l.example && <p className="small muted">例子：{l.example}</p>}</li>)}</ol></section>}
   </>;
 }
 export function BriefStep({ g }: { g: any }) {
@@ -327,16 +350,21 @@ export function BriefStep({ g }: { g: any }) {
       {b.help.length > 0 && <><h3>可以用的帮助</h3><ul>{b.help.map((t: string) => <li key={t}>{t}</li>)}</ul></>}</section>
   </>;
 }
-export function PracticeStep({ g, answers, set, readonly, opened, openHint, openMats }: { g: any; answers: Answers; set: (k: string, v: string | string[]) => void; readonly: boolean; opened: string[]; openHint: (k: string) => void; openMats: () => void }) {
+export function PracticeStep({ g, answers, set, readonly, opened, openHint, openMats, when = 'practice' }: { g: any; answers: Answers; set: (k: string, v: string | string[]) => void; readonly: boolean; opened: string[]; openHint: (k: string) => void; openMats: () => void; when?: 'practice' | 'transfer' }) {
   const [frames, setFrames] = useState<string[]>([]);
+  const list = g.practice.filter((p: any) => (p.when || 'practice') === when);
+  const lessons: any[] = g.lessons || [];
   return <>
-    <p className="intro">分 {g.practice.length} 小步作答。每步都有提示和答题框架，卡住了就看提示。只需要文字，不用上传文件；写几句即可，没有标准答案。</p>
-    {g.practice.map((p: any, idx: number) => {
+    {when === 'practice' ? <p className="intro">分 {list.length} 小步作答。每步都有提示和答题框架，卡住了就看提示。只需要文字，不用上传文件；写几句即可，没有标准答案。带「规则检查」的格子只核对数字或你选的标签。</p>
+      : <section className="sec-card transfer-intro"><h2>迁移练习：换一组材料，再用一次刚学的方法</h2><p className="small ink2">这组材料和示范、正式任务都不一样。做完才算完成这个体验。数字和标签会做规则检查，你写的文字不会被自动评价。</p></section>}
+    {list.map((p: any, idx: number) => {
       const shown = p.hints.filter((_: string, i: number) => opened.includes(p.id + ':' + i)).length;
       const filled = p.fields.filter((f: any) => filledField(answers[f.id])).length;
       return <section className="practice" key={p.id} id={'pr-' + p.id} aria-labelledby={'h-' + p.id}>
         <div className="practice-h"><h2 id={'h-' + p.id}>{idx + 1}. {p.title}</h2><span className="row" style={{ gap: 6 }}><button type="button" className="btn btn-sm only-narrow" onClick={openMats}>查看材料</button><span className={'badge ' + (filled === p.fields.length ? 'b-green' : filled ? 'b-warn' : 'b-gray')}>{filled === p.fields.length ? '已作答' : filled ? '写了一部分' : '未作答'}</span></span></div>
+        {p.material && <div className="task-mat pre" role="note"><span className="xs muted">这一题的材料</span>{'\n'}{p.material}</div>}
         <p className="prompt pre">{p.prompt}</p>
+        {p.lessons?.length > 0 && lessons.length > 0 && <details className="lesson-tip"><summary>方法提醒：{p.lessons.map((l: string) => lessons.find(x => x.id === l)?.title).filter(Boolean).join('、')}</summary><ul>{p.lessons.map((l: string) => { const x = lessons.find(y => y.id === l); return x ? <li key={l}><b>{x.title}</b>：{x.point}</li> : null; })}</ul></details>}
         <Terms names={p.terms} glossary={g.glossary} />
         <div className="hints">
           {p.hints.slice(0, shown).map((h: string, i: number) => <div className="hint-item" key={i}><b>提示 {i + 1}：</b>{h}</div>)}
@@ -346,26 +374,70 @@ export function PracticeStep({ g, answers, set, readonly, opened, openHint, open
           </div>
           {frames.includes(p.id) && <div className="framework pre">{p.framework}</div>}
         </div>
-        <div className="fields">{p.fields.map((f: any) => <Field key={f.id} f={f} value={answers[f.id]} set={set} readonly={readonly} />)}</div>
+        <div className="fields">{p.fields.map((f: any) => <Field key={f.id} f={f} value={answers[f.id]} set={set} readonly={readonly} opened={opened} openHint={openHint} />)}</div>
       </section>;
     })}
   </>;
 }
-function Field({ f, value, set, readonly }: { f: any; value: any; set: (k: string, v: string | string[]) => void; readonly: boolean }) {
+function Field({ f, value, set, readonly, opened = [], openHint }: { f: any; value: any; set: (k: string, v: string | string[]) => void; readonly: boolean; opened?: string[]; openHint?: (k: string) => void }) {
   const id = 'f-' + f.id.replace(/\./g, '-');
+  return <div className="field-wrap"><FieldInput f={f} id={id} value={value} set={set} readonly={readonly} />{f.check && <RuleCheck f={f} value={value} shown={opened.includes('chk:' + f.id)} show={() => openHint?.('chk:' + f.id)} />}</div>;
+}
+/* 规则检查：只核对数字或选择的标签，不评价自由文字。 */
+function RuleCheck({ f, value, shown, show }: { f: any; value: any; shown: boolean; show: () => void }) {
+  const [how, setHow] = useState(false);
+  const c = f.check;
+  if (c.kind === 'number') {
+    const r = checkNumber(c, value);
+    if (r.state === 'empty') return null;
+    return <div className={'rule ' + (r.state === 'ok' ? 'rule-ok' : 'rule-off')} role="status" data-testid={'rule-' + f.id}>
+      <span className="rule-tag">规则检查 · 只核对数字</span>
+      {r.state === 'ok' ? <span>✓ 和按方法算出的结果一致。</span> : r.state === 'nonum' ? <span>没有找到数字。这一格请写一个数字，例如百分比。</span> : r.state === 'alt' ? <span>和按方法算出的结果不一致。{r.altText}</span> : <span>你写的 {r.got}{c.unit} 和按方法算出的结果不一致，可以再算一次。</span>}
+      {r.state !== 'ok' && c.explain && <button type="button" className="text-btn" aria-expanded={how} onClick={() => setHow(!how)} style={{ marginLeft: 8 }}>{how ? '收起算法' : '看算法'}</button>}
+      {(r.state === 'ok' || how) && c.explain && <p className="small" style={{ marginTop: 4 }}>{c.explain}</p>}
+    </div>;
+  }
+  const picked = Array.isArray(value) ? value : [];
+  if (!shown) return <div className="rule"><button type="button" className="btn btn-sm" disabled={!picked.length} onClick={show}>对照参考标注</button> <span className="xs muted">{picked.length ? '只比较你选的标签，不评价你写的理由。' : '先选完再对照。'}</span></div>;
+  const r = checkChoices(c, value);
+  return <div className="rule rule-cmp" role="status" data-testid={'rule-' + f.id}>
+    <span className="rule-tag">规则检查 · 只比较你选的标签和参考标注</span>
+    <p className="small">{r.same ? '✓ 和参考标注一致。' : `一致 ${r.matched.length} 个；参考标注里有、你没选 ${r.missed.length} 个；你选了、参考标注没有 ${r.extra.length} 个。`}</p>
+    {r.missed.length > 0 && <><b className="xs">参考标注里有、你没选：</b><ul className="small">{r.missed.map(m => <li key={m}>{m}{c.why[m] ? '：' + c.why[m] : ''}</li>)}</ul></>}
+    {r.extra.length > 0 && <><b className="xs">你选了、参考标注没有：</b><ul className="small">{r.extra.map(m => <li key={m}>{m}{c.why[m] ? '：' + c.why[m] : ''}</li>)}</ul></>}
+    {c.explain && <p className="small" style={{ marginTop: 4 }}><b>参考说明：</b>{c.explain}</p>}
+    <p className="xs muted">参考标注由平台编写，可能有争议。你不同意时，可以在下面的文字里写出理由；看完也可以改选。</p>
+  </div>;
+}
+function FieldInput({ f, id, value, set, readonly }: { f: any; id: string; value: any; set: (k: string, v: string | string[]) => void; readonly: boolean }) {
   if (f.kind === 'choices') {
     const v: string[] = Array.isArray(value) ? value : [];
-    return <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}><legend className="label">{f.label}{!f.label.includes('多选') && <span className="muted">（可多选）</span>}</legend>
+    return <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}><legend className="label">{f.label}{!f.label.includes('选') && <span className="muted">（可多选）</span>}</legend>
       <div className="choice-list">{f.options.map((o: string) => <label className="choice" key={o}><input type="checkbox" disabled={readonly} checked={v.includes(o)} onChange={e => set(f.id, e.target.checked ? [...v, o] : v.filter(x => x !== o))} /><span>{o}</span></label>)}</div></fieldset>;
   }
   return <label className="field" htmlFor={id}><span className="label">{f.label}{f.required === false && <span className="muted">（选填）</span>}</span>
     {f.kind === 'textarea' ? <textarea id={id} className="textarea" rows={4} readOnly={readonly} placeholder={f.placeholder} value={typeof value === 'string' ? value : ''} onChange={e => set(f.id, e.target.value)} maxLength={20000} />
       : <input id={id} className="input" readOnly={readonly} placeholder={f.placeholder} value={typeof value === 'string' ? value : ''} onChange={e => set(f.id, e.target.value)} maxLength={2000} />}</label>;
 }
+/* 看参考前后的变化：只列出改过的地方，两个版本都保留。 */
+function Changes({ g, answers, go }: { g: any; answers: Answers; go: (s: number) => void }) {
+  const has = Object.keys(answers).some(k => k.startsWith('pre.'));
+  if (!has) return null;
+  const show = (v: unknown) => Array.isArray(v) ? v.join('、') : typeof v === 'string' ? v.trim() : '';
+  const changed = g.practice.flatMap((p: any) => p.fields.map((f: any) => ({ f, before: show(answers['pre.' + f.id]), now: show(answers[f.id]) }))).filter((x: any) => x.before !== x.now);
+  return <section className="sec-card" aria-labelledby="chg-h"><h2 id="chg-h">看完参考后，你可以回去改</h2>
+    <p className="small ink2">你第一次打开这一步时写的内容已经留了一份「看参考前的版本」。回去修改不会覆盖它，保存成果时两个版本都会保留。</p>
+    {changed.length ? <ul className="chg">{changed.map((x: any) => <li key={x.f.id}><b className="small">{x.f.label}</b><div className="chg-row"><div><span className="xs muted">看参考前</span><p className="small pre">{x.before || '（空）'}</p></div><div><span className="xs muted">现在</span><p className="small pre">{x.now || '（空）'}</p></div></div></li>)}</ul> : <p className="small muted">还没有改动。</p>}
+    <button type="button" className="btn btn-sm" style={{ marginTop: 8 }} onClick={() => go(3)}>回去修改作答</button>
+  </section>;
+}
 export function ReferenceStep({ g, data, answers, status, checks, setChecks, go }: { g: any; data: any; answers: Answers; status: any; checks: number[]; setChecks: (c: number[]) => void; go: (s: number) => void }) {
   const r = g.reference;
   return <>
     <p className="intro">这是一份参考思路，不是唯一答案。对照看看你想到了哪些、漏了哪些。这里不打分，也不会根据关键词判断你适不适合这个岗位。</p>
+    <div className="fb-legend" role="note"><b>这个体验里有三种反馈，分开看：</b>
+      <ul><li><b>规则检查</b>：只核对数字和你选的标签，是机械比对。</li><li><b>参考思路</b>（本页）：平台编写的一种合理做法，不是标准答案。</li><li><b>个性化点评</b>：没有提供。系统没有分析你写的文字，也不会根据字数或关键词评价你。</li></ul></div>
+    <Changes g={g} answers={answers} go={go} />
     {status.done < status.total && <p className="notice" style={{ marginTop: 14 }}>你还有 {status.total - status.done} 项没写。可以先看参考，但<b>只看不写不会生成完成记录</b>。<button className="text-btn" onClick={() => go(3)}>回去作答</button></p>}
     <section className="sec-card"><h2>参考成果</h2>{r.output.map((o: any) => <div key={o.heading} className="ref-sec"><h3>{o.heading}</h3><p className="pre">{o.text}</p></div>)}</section>
     <section className="sec-card"><h2>为什么这样想</h2><ul>{r.why.map((t: string) => <li key={t}>{t}</li>)}</ul></section>
@@ -377,9 +449,8 @@ export function ReferenceStep({ g, data, answers, status, checks, setChecks, go 
     <section className="sec-card"><h2>你的作答</h2><AnswerList data={data} answers={answers} /></section>
   </>;
 }
-function WrapStep({ data, reflection, setRefl, relatedJobs, relatedExps, company, items }: { data: any; reflection: Reflection; setRefl: (r: Reflection) => void; relatedJobs: any[]; relatedExps: any[]; company: any; items: any[] }) {
+function WrapStep({ data, reflection, setRefl, relatedExps, items }: { data: any; reflection: Reflection; setRefl: (r: Reflection) => void; relatedExps: any[]; items: any[] }) {
   const toggle = (arr: string[], v: string, on: boolean) => on ? [...arr, v] : arr.filter(x => x !== v);
-  const co = company ? items.find(i => i.id === company.id) : null;
   return <>
     <p className="intro">花一分钟想想这次体验。这些回答只给你自己看，不会发给企业，也不会变成标签。</p>
     <section className="sec-card"><h2>说说你的感受</h2>
@@ -392,11 +463,13 @@ function WrapStep({ data, reflection, setRefl, relatedJobs, relatedExps, company
         <div className="choice-list">{([['jobs', '相关的实习和校招'], ['experiences', '其他岗位体验'], ['company', '做这类工作的企业'], ['none', '暂时不想了解更多']] as const).map(([v, l]) => <label className="choice" key={v}><input type="checkbox" checked={reflection.next.includes(v)} onChange={e => setRefl({ ...reflection, next: toggle(reflection.next, v, e.target.checked) })} /><span>{l}</span></label>)}</div></fieldset>
       <p className="hint" style={{ marginTop: 10 }}>感受会保存在这台设备上，完成时一起写进你的完成记录。</p>
     </section>
-    <section className="sec-card"><h2>下一步可以看看</h2>
-      {relatedJobs.length > 0 && <><h3>相关招聘（示例）</h3><p className="hint">做没做这个体验，都不影响投递。</p><Grid items={relatedJobs} all={items} /></>}
-      {relatedExps.length > 0 && <><h3>相关岗位体验</h3><Grid items={relatedExps} /></>}
-      {co && <><h3>企业</h3><Grid items={[co]} /></>}
-      <p style={{ marginTop: 12 }}><Link href="/events">去机会库看更多 →</Link></p>
+  </>;
+}
+function ContinueLearning({ relatedExps }: { relatedExps: any[] }) {
+  return <>
+    <section className="sec-card"><h2>继续学习</h2>
+      {relatedExps.length > 0 ? <><p className="hint">换一个岗位或换一种难度，再用一次学到的方法。</p><Grid items={relatedExps} /></> : <p><Link href="/experiences">看看其他岗位体验 →</Link></p>}
+      <p className="small muted" style={{ marginTop: 12 }}>机会库里目前只有示例信息（用来展示格式），还没有经过核验的真实岗位或赛事，所以这里不推荐投递。</p>
     </section>
   </>;
 }

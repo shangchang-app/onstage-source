@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation';
 import { useSession } from './session';
 import { Modal } from './modal';
 import { AnswerList, ErrorBox, Grid, Loading, dateTime, guestSaveNote, stepsFor } from './ui';
+import { MyWorks } from './output';
+import { LocalError, discardDraft } from '@/lib/local-data';
 
 export function Me() {
   const { session, api, toast, adopt } = useSession(); const router = useRouter();
-  const [data, setData] = useState<any>(null), [error, setError] = useState(''), [view, setView] = useState<any>(null);
+  const [data, setData] = useState<any>(null), [error, setError] = useState(''), [view, setView] = useState<any>(null), [drop, setDrop] = useState<any>(null);
   const load = useCallback(() => api('mine').then(d => { setData(d); setError(''); }).catch(e => setError(e.message)), [api]);
   useEffect(() => { if (session) void load(); }, [session?.identity.stamp, load, session]);
   if (!session) return <Loading />;
@@ -24,7 +26,7 @@ export function Me() {
   return <div className="wrap page">
     <div className="ph"><h1>我的</h1><p className="lede">{user ? <>当前账号 {session.identity.phone}。</> : <>你还没有登录：草稿只保存在这个浏览器里。</>}这里的内容只有你自己能看到，不会展示给企业，也没有排名。</p></div>
     {!user && (session.loginAvailable === false
-      ? <div className="notice" style={{ marginBottom: 20 }}>试用期间暂未开放登录：收藏、完成记录和跨设备继续暂不可用。{guestSaveNote(session.sessionDays)}</div>
+      ? <div className="notice" style={{ marginBottom: 20 }}>{session.staticTrial ? '试用期间没有账号和服务器：草稿和成果都只保存在这个浏览器里，不能跨设备同步，也没有公开分享链接。' : '试用期间暂未开放登录：收藏、完成记录和跨设备继续暂不可用。成果保存在这个浏览器里。'}{guestSaveNote(session.sessionDays)}草稿和成果分开保存，清除草稿不会删除成果。建议定期导出备份。</div>
       : <div className="notice" style={{ marginBottom: 20 }}>登录后可以收藏、跨设备继续体验、保存完成记录。<Link href="/login?next=/me">去登录 →</Link></div>)}
 
     <section className="sec" aria-labelledby="h-cont"><div className="sec-h"><div><h2 id="h-cont">继续体验</h2><p>从上次停下的地方继续。</p></div></div>
@@ -34,10 +36,12 @@ export function Me() {
           {d.conflict && <span className="badge b-warn" style={{ marginTop: 4 }}>有两份作答，需要选择</span>}
           {d.outdated && <span className="badge b-gray" style={{ marginTop: 4 }}>体验已更新，你在做旧版本，可以继续做完</span>}
         </div>
-        <Link className="btn btn-primary" href={'/experiences/' + d.contentId + '/work'}>继续体验 →</Link>
+        <div className="row">{session.staticTrial && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDrop(d)}>清除草稿</button>}<Link className="btn btn-primary" href={'/experiences/' + d.contentId + '/work'}>继续体验 →</Link></div>
       </div>)}</div> : <div className="empty">还没有进行中的体验。<Link href="/experiences">去看看岗位体验 →</Link></div>}
       {off.length > 0 && <div className="stack" style={{ marginTop: 12 }}>{off.map((d: any) => <div className="list-row" key={d.contentId}><div><b>{d.content.data.title === '这项内容暂不可用' ? '已下线的体验' : d.content.data.title}</b><div className="small muted">体验已下线，草稿保留但暂时不能继续 · 保存于 {dateTime(d.savedAt)}</div></div></div>)}</div>}
     </section>
+
+    <MyWorks />
 
     {user && <section className="sec" aria-labelledby="h-rec"><div className="sec-h"><div><h2 id="h-rec">体验完成记录</h2><p>只表示完成了模拟体验，不代表实习或职业资格。</p></div></div>
       {data.records.length ? <div className="stack">{data.records.map((r: any) => <div className="list-row" key={r.id}><div><b>{r.title}</b><div className="small muted">{r.direction} · 第 {r.contentVersion} 版 · 完成于 {dateTime(r.createdAt)}</div></div><Link className="btn" href={'/records/' + r.id}>查看</Link></div>)}</div> : <div className="empty">还没有完成记录。完成一次岗位体验并保存后会出现在这里。</div>}
@@ -54,6 +58,9 @@ export function Me() {
 
     {user && <p style={{ marginTop: 32 }}><button className="btn" onClick={logout}>退出登录</button></p>}
 
+    <Modal open={!!drop} title="清除这份草稿？" role="alertdialog" onClose={() => setDrop(null)} footer={<><button className="btn" onClick={() => setDrop(null)}>取消</button><button className="btn btn-primary" onClick={() => { try { discardDraft(drop.contentId); setDrop(null); toast('已清除草稿，已保存的成果没有变化'); void load(); } catch (e) { setDrop(null); toast(e instanceof LocalError ? e.message + ' ' + e.recovery : (e as Error).message, true); } }}>清除草稿</button></>}>
+      <p>{drop?.content.data.title}：清除后，这个体验从头开始。<b>已保存的成果不会被删除。</b>如果还没保存成果，建议先回去保存，或者先导出备份。</p>
+    </Modal>
     <Modal open={!!view} title={view ? '可恢复的作答：' + view.title : ''} onClose={() => setView(null)} footer={view && <><button className="btn" onClick={() => remove(view.id)}>删除这份</button><button className="btn btn-primary" onClick={() => restore(view.id, view.content_id)}>恢复为草稿</button></>}>
       {view && <><p className="small muted">{view.reason} · 保存于 {dateTime(view.created_at)}</p><RecoveryBody r={view} /></>}
     </Modal>

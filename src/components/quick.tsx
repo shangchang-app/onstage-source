@@ -200,9 +200,8 @@ function Review({ q, g, data, answers, opened, heading, go, reflection, setRefl,
     </section>
 
     <section className="sec-card next-card" aria-labelledby="rv-next"><h2 id="rv-next">想再往深走一步？</h2>
-      {deep && <Link className="deep-link" href={'/experiences/' + deep.id}><span><b>{deep.data.title}</b><span className="small muted">同一个情境，约 {deep.data.minutes} 分钟：自己算数据、对时间、写一页给主管的说明，有分步提示和参考思路。</span></span><span className="go">去看看 →</span></Link>}
+      {deep && <Link className="deep-link" href={'/experiences/' + deep.id}><span><b>{deep.data.title}</b><span className="small muted">同一个情境，约 {deep.data.minutes} 分钟：学 5 个分析方法，自己算数据、写可验证的假设，再换一组数据练一次，最后保存一张问题诊断与行动建议卡。</span></span><span className="go">去看看 →</span></Link>}
       {relatedExps.filter(e => e.id !== q.deep).length > 0 && <><h3>其他岗位体验</h3><Grid items={relatedExps.filter(e => e.id !== q.deep)} /></>}
-      {relatedJobs.length > 0 && <><h3>相关招聘（示例）</h3><p className="hint">做没做这个体验，都不影响投递。</p><Grid items={relatedJobs} all={items} /></>}
       <div className="row" style={{ marginTop: 14 }}><button type="button" className="btn btn-sm" onClick={() => window.print()}>打印 / 存为 PDF</button><button type="button" className="btn btn-sm" onClick={() => go(0)}>回到任务开头</button></div>
     </section>
     {finish}

@@ -40,9 +40,15 @@ try {
   page('src/app/[section]/page.tsx', ['events', 'jobs', 'experiences', 'companies'].map(section => ({ section })));
   page('src/app/[section]/[id]/page.tsx', params.details);
   page('src/app/[section]/[id]/work/page.tsx', params.experiences);
+  // 版本标识：写进页脚和 version.json，方便确认线上部署的是哪一次提交。源码有未提交的改动时加「-modified」。
+  const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+  const git = args => { const r = spawnSync('git', args, { cwd: root, encoding: 'utf8' }); return r.status === 0 ? r.stdout.trim() : ''; };
+  const commit = (git(['rev-parse', '--short', 'HEAD']) || 'unknown') + (git(['status', '--porcelain', '--untracked-files=no']) ? '-modified' : '');
+  writeFileSync(join(app, 'public', 'version.json'), JSON.stringify({ version: pkg.version, commit, builtAt: new Date().toISOString(), base: base || '/' }, null, 2));
+  console.log('[pages] 版本 ' + pkg.version + ' · 提交 ' + commit);
   writeFileSync(join(app, 'next.config.ts'), `import type { NextConfig } from 'next';
 const config: NextConfig = { output: 'export', trailingSlash: true, basePath: ${JSON.stringify(base)}, images: { unoptimized: true }, poweredByHeader: false, devIndicators: false,
-  env: { NEXT_PUBLIC_STATIC: '1', NEXT_PUBLIC_BASE_PATH: ${JSON.stringify(base)} } };
+  env: { NEXT_PUBLIC_STATIC: '1', NEXT_PUBLIC_BASE_PATH: ${JSON.stringify(base)}, NEXT_PUBLIC_VERSION: ${JSON.stringify(pkg.version)}, NEXT_PUBLIC_COMMIT: ${JSON.stringify(commit)} } };
 export default config;
 `);
   run(require.resolve('next/dist/bin/next'), ['build', '--webpack'], { NODE_ENV: 'production', NEXT_TELEMETRY_DISABLED: '1' });

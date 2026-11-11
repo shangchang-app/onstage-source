@@ -113,6 +113,7 @@ export function Provider({ children }: { children: ReactNode }) {
         <p>找到机会，提前上场。面向大学生的 AI、出海及互联网职业机会与实践平台。</p>
         <p>岗位体验是线上模拟的工作场景，自愿参加：不是实习经历、能力认证或录用保证，也不是投递门槛。上场不收集简历。</p>
         <p><Link href="/cooperate">企业合作</Link>{session?.identity.role === 'admin' && <> · <Link href="/admin">内部后台</Link></>}</p>
+        {process.env.NEXT_PUBLIC_VERSION && <p className="xs" data-testid="build-stamp">版本 {process.env.NEXT_PUBLIC_VERSION} · 源码提交 {process.env.NEXT_PUBLIC_COMMIT || '未记录'}</p>}
       </div></footer>
       <nav className="tabbar" aria-label="底部导航">{NAV.map(([h, l, d]) => <Link key={h} href={h} aria-current={current(path, h) ? 'page' : undefined}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg><span>{l}</span></Link>)}</nav>
       <div aria-live="polite" role="status">{toastMsg && <div className={'toast' + (toastMsg.bad ? ' bad' : '')}>{toastMsg.text}</div>}</div>

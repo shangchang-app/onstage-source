@@ -17,9 +17,18 @@ export const materialSchema = z.object({
   text: text.default(''), items: z.array(text).max(30).default([])
 });
 export const termSchema = z.object({ term: short.min(1), def: text.min(1) });
+/* 规则检查（V1.6）：只核对数字或用户选的标签，不分析自由文字。 */
+export const checkSchema = z.object({
+  kind: z.enum(['number', 'choices']),
+  expect: z.array(z.union([z.number(), short])).min(1).max(10),
+  tol: z.number().min(0).max(100).default(0.1), unit: short.default(''),
+  alt: z.array(z.object({ value: z.number(), text: text.min(1) })).max(5).default([]),
+  explain: text.default(''), why: z.record(short, text).default({})
+});
 export const practiceFieldSchema = z.object({
   id: fieldId, label: short.min(1), kind: z.enum(['text', 'textarea', 'choices']),
-  options: z.array(short.min(1)).max(10).default([]), placeholder: short.default(''), required: z.boolean().default(true)
+  options: z.array(short.min(1)).max(10).default([]), placeholder: short.default(''), required: z.boolean().default(true),
+  check: checkSchema.optional()
 });
 
 /* ---------- 短体验（V1.5）：收到任务 → 看材料 → 行动与理由 → 基于操作的复盘 ---------- */
@@ -59,7 +68,8 @@ export const guideSchema = z.object({
   }),
   practice: z.array(z.object({
     id: short.min(1), title: short.min(1), prompt: text.min(1), hints: z.array(text).max(10), framework: text.default(''),
-    terms: z.array(short).max(10).default([]), fields: z.array(practiceFieldSchema).min(1).max(6)
+    terms: z.array(short).max(10).default([]), fields: z.array(practiceFieldSchema).min(1).max(6),
+    when: z.enum(['practice', 'transfer']).default('practice'), lessons: z.array(short).max(5).default([]), material: text.default('')
   })).min(1).max(10),
   reference: z.object({
     output: z.array(z.object({ heading: short.min(1), text: text.min(1) })).min(1).max(10),
@@ -67,6 +77,11 @@ export const guideSchema = z.object({
   }),
   glossary: z.array(termSchema).max(30).default([]),
   quick: quickSchema.optional(),
+  /* V1.6：方法要点、成果结构、内容来源、审核状态 */
+  lessons: z.array(z.object({ id: short.min(1), title: short.min(1), point: text.min(1), example: text.default('') })).max(8).default([]),
+  output: z.object({ title: short.min(1), sections: z.array(z.object({ heading: short.min(1), fields: z.array(fieldId).min(1).max(12), hint: short.default('') })).min(1).max(8) }).optional(),
+  provenance: z.array(z.object({ kind: sourceKind, title: short.min(1), detail: text.min(1), source: short.default(''), url: z.string().max(500).default(''), date: short.default('') })).max(12).default([]),
+  review: short.default(''),
   related: z.object({ jobs: z.array(short).max(10).default([]), experiences: z.array(short).max(10).default([]) }).default({ jobs: [], experiences: [] })
 });
 export type Guide = z.infer<typeof guideSchema>;
@@ -130,6 +145,14 @@ export function checkGuide(data: ContentData) {
   demand(new Set(ids).size === ids.length, 422, 'GUIDE', '作答字段编号不能重复');
   for (const p of data.guide.practice) for (const f of p.fields) demand(f.kind !== 'choices' || f.options.length >= 2, 422, 'GUIDE', `「${f.label}」至少需要两个选项`);
   demand(data.willDo.length > 0 && data.learn.length > 0, 422, 'GUIDE', '请填写「将体验的工作」和「能学到什么」');
+  const allFields = data.guide.practice.flatMap(p => p.fields);
+  for (const f of allFields) if (f.check) {
+    if (f.check.kind === 'number') demand(f.kind !== 'choices' && f.check.expect.every(x => typeof x === 'number'), 422, 'GUIDE', `「${f.label}」的数字检查设置不正确`);
+    else demand(f.kind === 'choices' && f.check.expect.every(x => typeof x === 'string' && f.options.includes(x)), 422, 'GUIDE', `「${f.label}」的参考标注不在选项里`);
+  }
+  if (data.guide.output) for (const sec of data.guide.output.sections) for (const fid of sec.fields) demand(allFields.some(f => f.id === fid), 422, 'GUIDE', `成果「${sec.heading}」引用了不存在的字段：${fid}`);
+  const lessonIds = new Set(data.guide.lessons.map(l => l.id));
+  for (const p of data.guide.practice) for (const l of p.lessons) demand(lessonIds.has(l), 422, 'GUIDE', `「${p.title}」引用了不存在的方法要点：${l}`);
   const q = data.guide.quick;
   if (q) {
     const ids = q.materials.map(m => m.id); demand(new Set(ids).size === ids.length, 422, 'GUIDE', '材料编号不能重复');

@@ -5,13 +5,14 @@
    - 登录、完成记录、收藏、反馈、合作表单在试玩版里不可用，返回明确的提示。
    保存规则与正式版的访客模式一致（版本号检查、冲突时两份都保留），所以作答页的提示和冲突处理照常工作。 */
 import { hasContent, requiredStatus, sameAnswers } from '../server/validation';
+import { DRAFT_KEY, migrateDraftDb, migrateLocalKeys } from './local-data';
 
 type Json = Record<string, any>;
 type Draft = { owner: string; content_id: string; version: number; content_version: number; answers: Json; conflict: 0 | 1; conflict_with: string | null; saved_at: string; progress: Json };
 type Recovery = { id: string; owner: string; content_id: string; content_version: number; answers: Json; reason: string; created_at: string };
-type Db = { owner: string; drafts: Record<string, Draft>; recoveries: Recovery[] };
+type Db = { owner: string; drafts: Record<string, Draft>; recoveries: Recovery[]; schema?: number };
 
-const KEY = 'onstage-free:v1';
+const KEY = DRAFT_KEY;
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH || '';
 /** 本机保存的有效期说明：部分浏览器（如 iPhone 上的 Safari）会清理 7 天没有访问的网站数据，所以只承诺 7 天。 */
 const KEEP_DAYS = 7;
@@ -27,8 +28,8 @@ let memory: Db | null = null; // 浏览器不能保存数据时，只在当前�
 function load(): Db {
   let raw: string | null = null;
   try { raw = localStorage.getItem(KEY); } catch { raw = null; }
-  if (raw) return JSON.parse(raw) as Db;
-  const db = memory || { owner: 'local:' + uid(), drafts: {}, recoveries: [] };
+  if (raw) { const db = JSON.parse(raw) as Db; if (migrateDraftDb(db)) { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { /* 迁移结果下次再保存 */ } } return db; }
+  const db = memory || { owner: 'local:' + uid(), drafts: {}, recoveries: [], schema: 2 };
   try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { memory = db; }
   return db;
 }
@@ -140,6 +141,7 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 export function installStaticApi() {
   const w = window as unknown as { __onstageStatic?: boolean };
   if (w.__onstageStatic) return; w.__onstageStatic = true;
+  migrateLocalKeys();
   const original = window.fetch.bind(window);
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const raw = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;

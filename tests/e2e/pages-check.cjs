@@ -39,7 +39,10 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
   await check('首页：一句话说清楚、能看到场景预览和成果示例、有开始入口；标注示例；没有登录入口', async () => {
     const { c, p } = await ctx({ deviceScaleFactor: 2 }); await p.goto(SITE + '/', { waitUntil: 'networkidle' });
     const t = await p.locator('main').innerText();
-    for (const k of ['先试着做一次工作', '再决定要不要走这条路', '体验预览', '做完能得到什么', '示例', '短体验', '深度版', '简版练习', '正在规划']) ok(t.includes(k), '首页缺少：' + k);
+    for (const k of ['先试着做一次工作', '再决定要不要走这条路', '体验预览', '做完能得到什么', '示例', '短体验', '完整体验', '简版练习', '正在规划', '两个 AI 回答', '问题诊断与行动建议卡', '评测标准与案例分析', '机会库里目前只有示例信息']) ok(t.includes(k), '首页缺少：' + k);
+    ok(await p.locator('main .card:has-text("实习生")').count() === 0, '首页不应推荐示例岗位');
+    ok(/版本 1\.6\.0 · 源码提交 [0-9a-f]{7}/.test(await p.locator('[data-testid="build-stamp"]').innerText()), '页脚没有版本和提交号');
+    const v = await (await p.request.get(SITE + '/version.json')).json(); ok(v.version === '1.6.0' && /^[0-9a-f]{7}/.test(v.commit), 'version.json 不对');
     ok(await p.locator('a:has-text("开始 8 分钟体验")').count() === 1, '没有开始入口');
     ok(await p.locator('.site-head .badge:has-text("试用版")').count() === 1 && await p.locator('.site-head a:has-text("登录")').count() === 0, '页头状态不对');
     ok(await p.locator('.dev-bar').count() === 0, '出现测试环境提示条');
@@ -77,14 +80,14 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
     await waitSaved(p); await save(p, '05-桌面-第3步-行动与理由');
     await p.click('button:has-text("提交方案，看复盘")'); await p.waitForSelector('#rv-ref');
     const r = await p.locator('main').innerText();
-    for (const k of ['没有接入 AI，不会自动分析这段文字', '先让客服把 64 单不匹配退货按车型列一张表', '车型不匹配从 6 单涨到 64 单', '合理的地方', '可能漏掉的', '要权衡的', '怎么知道有没有用', '参考复盘', '系统参考，不是标准答案', '这份工作平时是什么样', '深度版']) ok(r.includes(k), '复盘缺少：' + k);
+    for (const k of ['没有接入 AI，不会自动分析这段文字', '先让客服把 64 单不匹配退货按车型列一张表', '车型不匹配从 6 单涨到 64 单', '合理的地方', '可能漏掉的', '要权衡的', '怎么知道有没有用', '参考复盘', '系统参考，不是标准答案', '这份工作平时是什么样', '深度版', '你的成果：行动方案']) ok(r.includes(k), '复盘缺少：' + k);
     ok(r.includes('没有打开：利润拆解'), '没指出没看的关键材料');
     ok(r.includes('没有选：暂停「brake pads」广泛匹配'), '没指出没选的核心行动');
     ok(r.includes('可能让问题更严重'), '没指出高风险行动的取舍');
     ok(r.includes('没有提到按车型拆分的数据'), '没指出缺少的关键信息');
     ok(r.includes('系统不会读你写的文字'), '写了自己的方案时，没说明系统不读文字');
     ok(!/[0-9]+ ?分(?!钟)|适合你|你是.{0,6}型/.test(r.replace(/不打分|分数|分钟|评分|分清|分摊|拆分|部分|一分钟|分别|分析|分享/g, '')), '复盘里出现了分数或标签');
-    await p.waitForSelector('[data-testid="trial-note"]'); ok(await p.locator('button:has-text("完成并保存记录")').count() === 0, '试玩版不应出现完成按钮');
+    await p.waitForSelector('#out-h'); ok(await p.locator('button:has-text("完成并保存记录")').count() === 0, '试玩版不应出现完成按钮'); ok(!(await p.locator('main').innerText()).includes('暂不能保存'), '还在提示暂不能保存');
     await save(p, '06-桌面-第4步-复盘'); console.log('    完整流程用时（自动操作）', Math.round((Date.now() - t0) / 1000), '秒');
     // 返回修改：内容还在，改完复盘跟着变
     await p.click('button:has-text("改一改方案")'); await p.waitForSelector('#f-plan-reason'); ok(await p.inputValue('#f-plan-reason') === '车型不匹配从 6 单涨到 64 单，差评车型都是新加的。', '返回修改时内容丢失');
@@ -149,7 +152,7 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
   });
   await check('深度版 6 步与简版练习照常可用', async () => {
     const { c, p } = await ctx(); await practice(p); for (let i = 5; i <= 6; i++) { await p.click(`.stepper li:nth-child(${i}) button`); await p.waitForTimeout(100); }
-    ok((await p.locator('[data-testid="trial-note"]').innerText()).includes('7 天'), '没有说明保存范围');
+    ok((await p.locator('.out-panel').innerText()).includes('只保存在这台设备的这个浏览器里'), '没有说明保存范围');
     await p.goto(SITE + '/experiences/yc-quick/work/', { waitUntil: 'networkidle' });
     await p.click('#pr-t0 button:has-text("查看参考思路")'); await p.waitForSelector('#pr-t0 [role="note"]');
     await waitSaved(p); ok((await p.locator('.track').innerText()).includes('已看参考思路')); await c.close();
@@ -178,9 +181,107 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
     ok((await p.locator('main').innerText()).includes('不能使用本地存储'), '页面没有存储不可用的说明');
     await p.screenshot({ path: path.join(SHOTS, 'pages-storage-failed.png') }); await c.close();
   });
+
+  /* ---------- V1.6：完整体验 → 成果 ---------- */
+  const NUM = { 'f-p0-rate': '3.7%', 'f-p1-before': '约 4.7%', 'f-p1-after': '约 11.1%', 'f-t-before': '5.1%', 'f-t-after': '5.1%' };
+  async function fillVisible(p, tag) {
+    for (const sec of await p.locator('.practice').all()) {
+      for (const fs_ of await sec.locator('fieldset').all()) if (await fs_.locator('input:checked').count() === 0) await fs_.locator('.choice').first().click();
+      for (const el of await sec.locator('input.input, textarea').all()) { const id = await el.getAttribute('id'); if (!(await el.inputValue())) await el.fill(NUM[id] || `${tag}：${id} 的作答`); }
+    }
+  }
+  async function doFull(p, url, tag, stepsCount = 6) {
+    await p.goto(url, { waitUntil: 'networkidle' }); await p.waitForSelector('.stepper');
+    await p.click('.stepper li:nth-child(2) button'); await p.waitForTimeout(150);
+    await p.click('.stepper li:nth-child(4) button'); await p.waitForSelector('.practice'); await fillVisible(p, tag); await waitSaved(p);
+    await p.click('.stepper li:nth-child(5) button'); await p.waitForSelector('#chg-h'); // 第一次看参考：保留「看参考前」的版本
+    await p.click('.stepper li:nth-child(6) button'); await p.waitForSelector('.transfer-intro'); await fillVisible(p, tag); await waitSaved(p);
+  }
+  await check('新用户：运营完整体验从开始到保存成果；成果只含自己的作答，标明教学作品、版本、时间、保存范围；可以从「我的」重新打开', async () => {
+    const { c, p } = await ctx({ deviceScaleFactor: 2 });
+    await p.goto(DW, { waitUntil: 'networkidle' }); await p.click('.stepper li:nth-child(2) button'); await p.waitForSelector('#lessons-h');
+    ok((await p.locator('#lessons-h').locator('..').innerText()).includes('整体退货率要用合计数算'), '示范页没有方法要点'); await save(p, '21-桌面-深度版-示范与方法');
+    await p.click('.stepper li:nth-child(4) button'); await p.waitForSelector('#f-p0-rate');
+    await p.fill('#f-p0-rate', '6.5%'); await p.waitForSelector('[data-testid="rule-p0.rate"]'); ok((await p.locator('[data-testid="rule-p0.rate"]').innerText()).includes('平均'), '平均百分比没有对应的规则说明');
+    await p.fill('#f-p0-rate', '3.7%'); await p.waitForFunction(() => /一致/.test(document.querySelector('[data-testid="rule-p0.rate"]')?.textContent || ''));
+    ok((await p.locator('.lesson-tip').first().innerText()).includes('方法提醒'), '没有方法提醒');
+    await fillVisible(p, '我的'); await waitSaved(p); await p.evaluate(() => scrollTo(0, 0)); await save(p, '22-桌面-深度版-跟着尝试（规则检查）', false);
+    await p.click('.stepper li:nth-child(5) button'); await p.waitForSelector('#chg-h');
+    ok((await p.locator('.fb-legend').innerText()).includes('个性化点评：没有提供'), '没有区分三种反馈');
+    // 看完参考回去改一处，前后版本都保留
+    await p.click('button:has-text("回去修改作答")'); await p.waitForSelector('#f-p3-main'); await p.fill('#f-p3-main', '看完参考后改写：车型不匹配 64 单，评论车型都是新增的'); await waitSaved(p);
+    await p.click('.stepper li:nth-child(5) button'); await p.waitForSelector('.chg li'); ok((await p.locator('.chg').innerText()).includes('看完参考后改写'), '没有显示前后变化');
+    await p.click('.stepper li:nth-child(6) button'); await p.waitForSelector('.transfer-intro'); ok(await p.locator('[data-testid="save-work"]').count() === 0, '迁移练习没做也能保存');
+    await p.fill('#f-t-before', '10%'); ok((await p.locator('[data-testid="rule-t.before"]').innerText()).includes('不一致'), '迁移练习没有数字检查');
+    await p.fill('#f-t-before', '5.1%'); await fillVisible(p, '迁移'); await p.locator('#pr-p7 button:has-text("对照参考标注")').click();
+    ok((await p.locator('[data-testid="rule-t.judge"]').innerText()).includes('只比较你选的标签'), '选择题检查没有说明范围');
+    await waitSaved(p); await p.locator('#out-h').scrollIntoViewIfNeeded(); await save(p, '23-桌面-深度版-迁移练习与成果预览');
+    await p.click('[data-testid="save-work"]'); await p.waitForSelector('.out-side .ok-box'); ok((await p.locator('.out-side .ok-box').innerText()).includes('已保存到本机'), '没有保存成功提示');
+    // 再改一处并保存：生成修改记录
+    await p.click('.stepper li:nth-child(4) button'); await p.fill('#f-p6-missing', '第二版：按车型拆分的退货（找数据同事）'); await waitSaved(p);
+    await p.click('.stepper li:nth-child(6) button'); await p.click('[data-testid="save-work"]'); await p.waitForSelector('.out-side .ok-box:has-text("已更新成果")');
+    await p.click('.out-side a:has-text("打开成果页")'); await p.waitForURL('**/works/?id=*'); await p.waitForSelector('.work-card');
+    const w = await p.locator('.work-card').innerText();
+    for (const k of ['教学模拟作品', '问题诊断与行动建议卡', '任务版本：第 1 版', '完成时间：', '问题概述', '关键证据', '原因假设', '优先行动', '待验证信息', '看完参考后改写', '第二版：按车型拆分的退货', '只保存在这台设备的这个浏览器里']) ok(w.includes(k), '成果页缺少：' + k);
+    ok(!w.includes('最可能是新增车型的适配数据有错。依据'), '成果里混入了参考答案');
+    ok((await p.locator('#rev-h').locator('..').innerText()).includes('看参考思路之前写的版本'), '没有保留看参考前的版本');
+    await save(p, '24-桌面-成果页');
+    await p.click('#rev-h ~ ul button, .sec-card ul .text-btn >> nth=0'); await p.waitForSelector('.warn-box:has-text("旧版本")'); ok(!(await p.locator('.work-card').innerText()).includes('第二版'), '旧版本显示不对');
+    await p.emulateMedia({ media: 'print' }); ok(await p.locator('.site-head').isHidden() && await p.locator('.crumb').isHidden() && await p.locator('.work-card').isVisible(), '打印版不对'); await p.emulateMedia({ media: 'screen' });
+    // 关闭后重新打开：草稿和成果都在
+    const p2 = await c.newPage(); p2.errors = []; p2.on('pageerror', e => p2.errors.push(e.message)); await p.close(); await p2.goto(SITE + '/me/', { waitUntil: 'networkidle' }); await p2.waitForSelector('#h-works');
+    const me = await p2.locator('main').innerText(); ok(me.includes('问题诊断与行动建议卡') && me.includes('1 次修改记录'), '「我的」没有成果'); ok(me.includes('深度版：退货率上升'), '「我的」没有草稿');
+    await save(p2, '25-桌面-我的'); ok(p2.errors.length === 0, p2.errors.join(' | ')); await c.close();
+  });
+  await check('第二个完整体验（AI 回答评测）：示范、标签规则检查、成果保存；和运营体验的数据互不影响', async () => {
+    const { c, p } = await ctx({ deviceScaleFactor: 2 });
+    await p.goto(SITE + '/experiences/ai-eval/', { waitUntil: 'networkidle' }); const d = await p.locator('main').innerText();
+    for (const k of ['未经 AI 产品或评测从业者审核', '人工编写的教学样例', 'Microsoft Support', '评测标准与案例分析']) ok(d.includes(k), '详情页缺少：' + k);
+    await save(p, '31-桌面-AI评测-详情');
+    await doFull(p, SITE + '/experiences/ai-eval/work/', 'AI');
+    await p.click('.stepper li:nth-child(4) button'); await p.waitForSelector('#pr-q4');
+    await p.locator('#pr-q4 button:has-text("对照参考标注")').first().click(); const rc = await p.locator('[data-testid="rule-c.tags"]').innerText();
+    ok(rc.includes('参考标注') && rc.includes('FALSE'), 'C 的参考说明不对'); await p.locator('#pr-q3').scrollIntoViewIfNeeded(); await save(p, '32-桌面-AI评测-逐个评估', false);
+    await p.click('.stepper li:nth-child(6) button'); await p.waitForSelector('[data-testid="save-work"]'); await p.click('[data-testid="save-work"]'); await p.waitForSelector('.out-side .ok-box');
+    await p.goto(SITE + '/me/', { waitUntil: 'networkidle' }); await p.waitForSelector('#h-works'); ok((await p.locator('main').innerText()).includes('评测标准与案例分析'), '「我的」没有 AI 成果');
+    await p.goto(DW, { waitUntil: 'networkidle' }); await p.click('.stepper li:nth-child(4) button'); await p.waitForSelector('#f-p1-before'); ok(await p.inputValue('#f-p1-before') === '', '运营体验出现了 AI 体验的作答');
+    ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
+  });
+  await check('导出备份 → 在空白浏览器导入：成果和草稿都恢复；错误文件给出原因；清除草稿不影响成果', async () => {
+    const A = await ctx({ acceptDownloads: true }); await doFull(A.p, DW, '备份'); await A.p.click('[data-testid="save-work"]'); await A.p.waitForSelector('.out-side .ok-box');
+    await A.p.goto(SITE + '/me/', { waitUntil: 'networkidle' }); await A.p.waitForSelector('#h-backup');
+    const [dl] = await Promise.all([A.p.waitForEvent('download'), A.p.click('button:has-text("导出备份")')]); const file = path.join(OUT, 'backup.json'); await dl.saveAs(file);
+    ok(JSON.parse(fs.readFileSync(file, 'utf8')).format === 'onstage-backup', '导出的不是备份文件');
+    // 清除草稿：成果还在
+    await A.p.click('.list-row:has-text("深度版") button:has-text("清除草稿")'); await A.p.waitForSelector('[role="alertdialog"]');
+    await A.p.click('[role="alertdialog"] button:has-text("清除草稿")'); await A.p.waitForSelector('[role="alertdialog"]', { state: 'detached' });
+    await A.p.waitForFunction(() => !document.querySelector('#h-cont')?.closest('section')?.textContent?.includes('深度版'));
+    ok((await A.p.locator('main').innerText()).includes('问题诊断与行动建议卡'), '清除草稿后成果不见了'); await A.c.close();
+    const B = await ctx(); await B.p.goto(SITE + '/me/', { waitUntil: 'networkidle' }); await B.p.waitForSelector('#h-backup');
+    const bad = path.join(OUT, 'bad.json'); fs.writeFileSync(bad, '{"hello":1}'); await B.p.setInputFiles('#import-file', bad);
+    await B.p.waitForSelector('.bad-box[role="alert"]'); ok((await B.p.locator('.bad-box[role="alert"]').innerText()).includes('不是上场的备份文件'), '错误文件提示不对');
+    await B.p.setInputFiles('#import-file', file); await B.p.waitForSelector('.ok-box:has-text("导入完成")'); const t = await B.p.locator('main').innerText();
+    ok(t.includes('新增 1 份成果') && t.includes('问题诊断与行动建议卡'), '导入后没有成果'); ok(t.includes('深度版：退货率上升'), '导入后没有草稿');
+    await save(B.p, '26-桌面-我的-导入备份后'); await B.c.close();
+  });
+  await check('旧版草稿升级：线上 V1.4.1 浏览器里的 6 步作答，升级后出现在深度版，内容不丢', async () => {
+    const { c, p } = await ctx();
+    await p.addInitScript(() => { if (!localStorage.getItem('onstage-free:v1')) localStorage.setItem('onstage-free:v1', JSON.stringify({ owner: 'local:old', drafts: { 'ops-returns': { owner: 'local:old', content_id: 'ops-returns', version: 4, content_version: 1, answers: { 'p1.before': '旧版写的 4.7%', 'p5.first': '旧版写的行动' }, conflict: 0, conflict_with: null, saved_at: '2026-11-11T08:00:00.000Z', progress: { step: 3, visited: [0, 1, 2, 3], referenceViewed: false, hintsOpened: [] } } }, recoveries: [] })); });
+    await p.goto(DW, { waitUntil: 'networkidle' }); await p.waitForSelector('#f-p1-before');
+    ok(await p.inputValue('#f-p1-before') === '旧版写的 4.7%', '旧版作答没有迁移'); ok(await p.inputValue('#f-p5-first') === '旧版写的行动', '旧版作答没有迁移');
+    await p.goto(W, { waitUntil: 'networkidle' }); await p.waitForSelector('.msg'); ok(await p.locator('textarea').count() === 0, '短体验被旧数据打乱');
+    await c.close();
+  });
+  await check('保存成果时空间不足：给出真实错误和恢复办法，不显示保存成功', async () => {
+    const { c, p } = await ctx(); await doFull(p, DW, '空间');
+    await p.evaluate(() => { const o = Storage.prototype.setItem; Storage.prototype.setItem = function (k, v) { if (k === 'onstage-works:v1') throw new DOMException('full', 'QuotaExceededError'); return o.call(this, k, v); }; });
+    await p.click('[data-testid="save-work"]'); await p.waitForSelector('.out-side .bad-box');
+    const t = await p.locator('.out-side .bad-box').innerText(); ok(t.includes('存储空间满了') && t.includes('怎么办') && t.includes('导出备份'), '空间不足提示不对');
+    ok(await p.locator('.out-side .ok-box').count() === 0, '显示了保存成功'); await save(p, '27-桌面-保存失败提示', false); await c.close();
+  });
   for (const [w, h] of [[390, 844], [320, 640]]) await check(`手机 ${w}px：无横向溢出；写方案时回看材料，关闭后回到原输入框，内容和位置不丢`, async () => {
     const { c, p } = await ctx({ viewport: { width: w, height: h }, deviceScaleFactor: w === 390 ? 3 : 2, hasTouch: true, isMobile: true });
-    for (const u of ['/', '/experiences/', '/experiences/ops-returns/', '/experiences/ops-returns/work/', '/cooperate/', '/jobs/', '/me/']) { await p.goto(SITE + u, { waitUntil: 'networkidle' }); const o = await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth); ok(o <= 0, `${u} 横向溢出 ${o}px`); }
+    for (const u of ['/', '/experiences/', '/experiences/ops-returns/', '/experiences/ops-returns/work/', '/experiences/ops-returns-deep/work/', '/experiences/ai-eval/', '/experiences/ai-eval/work/', '/works/?id=none', '/cooperate/', '/jobs/', '/me/']) { await p.goto(SITE + u, { waitUntil: 'networkidle' }); const o = await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth); ok(o <= 0, `${u} 横向溢出 ${o}px`); }
     if (w === 390) { await p.goto(SITE + '/', { waitUntil: 'networkidle' }); await save(p, '11-手机-首页'); }
     await p.goto(W, { waitUntil: 'networkidle' }); await p.waitForSelector('.msg'); if (w === 390) await save(p, '12-手机-第1步-收到任务', false);
     await p.click('button:has-text("开始：去后台看看")'); await p.click('.matc:has-text("差评和适配表") .matc-h button'); if (w === 390) await save(p, '13-手机-第2步-看材料', false);
@@ -194,6 +295,22 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
     ok(Math.abs(await p.evaluate(() => scrollY) - y0) < 80, '关闭材料后页面位置变了');
     if (w === 390) { await waitSaved(p); await p.evaluate(() => scrollTo(0, 0)); await save(p, '15-手机-第3步-行动与理由'); await p.click('button:has-text("提交方案，看复盘")'); await p.waitForSelector('#rv-ref'); await save(p, '16-手机-第4步-复盘'); await p.goto(SITE + '/cooperate/', { waitUntil: 'networkidle' }); await save(p, '17-手机-企业合作'); }
     ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
+  });
+  await check('手机 390px：完整体验的规则检查、成果保存、成果页、「我的」；弹窗关闭后焦点回来', async () => {
+    const { c, p } = await ctx({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, hasTouch: true, isMobile: true });
+    await doFull(p, DW, '手机');
+    await p.click('.stepper li:nth-child(4) button'); await p.waitForSelector('#f-p0-rate'); await p.locator('#pr-p0').scrollIntoViewIfNeeded(); await save(p, '41-手机-规则检查', false);
+    await p.click('.stepper li:nth-child(6) button'); await p.waitForSelector('[data-testid="save-work"]'); await p.click('[data-testid="save-work"]'); await p.waitForSelector('.out-side .ok-box');
+    await p.locator('.out-panel').scrollIntoViewIfNeeded(); await save(p, '42-手机-成果预览与保存', false);
+    for (const u of ['/me/']) { await p.goto(SITE + u, { waitUntil: 'networkidle' }); }
+    await p.waitForSelector('#h-works'); await save(p, '44-手机-我的');
+    const btn = p.locator('.list-row:has-text("深度版") button:has-text("清除草稿")'); await btn.click(); await p.waitForSelector('[role="alertdialog"]');
+    ok(await p.evaluate(() => !!document.activeElement?.closest('[role="alertdialog"]')), '焦点没有进入弹窗');
+    await p.keyboard.press('Escape'); await p.waitForSelector('[role="alertdialog"]', { state: 'detached' });
+    ok((await p.evaluate(() => document.activeElement?.textContent || '')).includes('清除草稿'), '弹窗关闭后焦点没有回到按钮');
+    await p.click('.list-row a:has-text("打开")'); await p.waitForSelector('.work-card');
+    const o = await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth); ok(o <= 0, '成果页横向溢出 ' + o);
+    await save(p, '43-手机-成果页'); ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
   });
   await b.close(); server.close();
   fs.writeFileSync(path.join(OUT, 'pages.json'), JSON.stringify({ at: new Date().toISOString(), base: BASE, results }, null, 2));
