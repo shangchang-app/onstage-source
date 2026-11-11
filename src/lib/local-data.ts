@@ -113,7 +113,9 @@ export function importBackup(text: string) {
 /* ---------- 旧版草稿迁移 ----------
    V1.4.1（线上旧版）里，ops-returns 是 6 步引导体验，作答字段是 p1.*–p6.*。
    V1.5 起 ops-returns 改为短体验，原 6 步体验改名为 ops-returns-deep。
-   升级时把旧的 6 步草稿、可恢复作答、本机暂存和「感受」挪到 ops-returns-deep，不删除任何内容。 */
+   升级时把旧的 6 步草稿、可恢复作答、本机暂存和「感受」复制一份到 ops-returns-deep。
+   原来的数据留在原处不删（只把原草稿的步骤号重置为第 1 步，避免短体验打开到奇怪的位置），
+   所以回滚到 V1.4.1 时，旧版仍能读到原来的作答。迁移只做一次（schema 记为 2）。 */
 export const OLD_ID = 'ops-returns', DEEP_ID = 'ops-returns-deep';
 const isSixStep = (answers: unknown) => !!answers && typeof answers === 'object' && Object.keys(answers as Json).some(k => /^p[1-6]\./.test(k));
 export function migrateDraftDb(db: Json): boolean {
@@ -121,25 +123,24 @@ export function migrateDraftDb(db: Json): boolean {
   db.drafts = db.drafts || {}; db.recoveries = db.recoveries || [];
   const old = db.drafts[OLD_ID];
   if (old && isSixStep(old.answers)) {
-    if (!db.drafts[DEEP_ID]) db.drafts[DEEP_ID] = { ...old, content_id: DEEP_ID, conflict: 0, conflict_with: null };
-    else db.recoveries.push({ id: uid(), owner: db.owner, content_id: DEEP_ID, content_version: old.content_version, answers: old.answers, reason: '升级时保留的旧版作答', created_at: new Date().toISOString() });
-    delete db.drafts[OLD_ID];
+    const copy = JSON.parse(JSON.stringify({ ...old, content_id: DEEP_ID, conflict: 0, conflict_with: null }));
+    if (!db.drafts[DEEP_ID]) db.drafts[DEEP_ID] = copy;
+    else db.recoveries.push({ id: uid(), owner: db.owner, content_id: DEEP_ID, content_version: old.content_version, answers: copy.answers, reason: '升级时保留的旧版作答', created_at: new Date().toISOString() });
+    old.progress = { ...(old.progress || {}), step: 0 };
   }
-  for (const r of db.recoveries) if (r.content_id === OLD_ID && isSixStep(r.answers)) r.content_id = DEEP_ID;
+  for (const r of [...db.recoveries]) if (r.content_id === OLD_ID && isSixStep(r.answers)) db.recoveries.push({ ...JSON.parse(JSON.stringify(r)), id: uid(), content_id: DEEP_ID });
   db.schema = 2; return true;
 }
 export function migrateLocalKeys() {
   try {
+    if (localStorage.getItem('onstage:migrated:v16') === '1') return;
     const refOld = 'onstage:reflection:' + OLD_ID, refNew = 'onstage:reflection:' + DEEP_ID;
     const r = localStorage.getItem(refOld);
-    if (r && localStorage.getItem('onstage:migrated:v16') !== '1') {
-      const v = JSON.parse(r); const likes: string[] = v?.reflection?.likes || [];
-      if (likes.some(l => /6 周的运营数据|一页给主管/.test(l)) || v?.reflection?.understand) { if (!localStorage.getItem(refNew)) localStorage.setItem(refNew, r); localStorage.removeItem(refOld); }
-    }
+    if (r && !localStorage.getItem(refNew)) { const v = JSON.parse(r); if ((v?.reflection?.likes || []).some((l: string) => /6 周的运营数据|一页给主管/.test(l)) || v?.reflection?.understand) localStorage.setItem(refNew, r); }
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i)!; const m = k.match(/^onstage:backup:(.+):ops-returns$/);
       if (!m) continue; const v = JSON.parse(localStorage.getItem(k) || 'null');
-      if (v && isSixStep(v.answers)) { const nk = `onstage:backup:${m[1]}:${DEEP_ID}`; if (!localStorage.getItem(nk)) localStorage.setItem(nk, JSON.stringify(v)); localStorage.removeItem(k); i--; }
+      const nk = `onstage:backup:${m[1]}:${DEEP_ID}`; if (v && isSixStep(v.answers) && !localStorage.getItem(nk)) localStorage.setItem(nk, JSON.stringify(v));
     }
     localStorage.setItem('onstage:migrated:v16', '1');
   } catch { /* 存储不可用时跳过，不影响使用 */ }

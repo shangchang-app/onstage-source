@@ -50,7 +50,7 @@ test('完整作答后提交：生成绑定账号和版本的记录；重复提�
   const r = env.svc.submit(u.id, G, { version: d2.version, contentVersion: 1, reflection: { understand: 'yes', likes: ['读数据'], next: ['jobs'] } });
   assert.equal(r.duplicate, false);
   const rec = env.svc.record(u.id, r.id);
-  assert.equal(rec.owner, u.id.userId); assert.equal(rec.content_version, 1); assert.equal(rec.snapshot.data.title, '深度版：退货率上升，写一份问题诊断与行动建议');
+  assert.equal(rec.owner, u.id.userId); assert.equal(rec.content_version, 1); assert.equal(rec.snapshot.data.title, '完整版：退货率上升，写一份问题诊断与行动建议');
   assert.equal(rec.reflection.understand, 'yes');
   assert.equal(env.svc.draft(u.id, G), null, '提交后草稿移除');
   assert.equal(env.svc.submit(u.id, G, { version: 1, contentVersion: 1 }).duplicate, true);
@@ -160,7 +160,7 @@ test('内容更新：发布新版本不改变历史记录；旧版草稿可以�
   env.svc.reviewVersion(ad, G, 2, { action: 'approve', note: '已核对' });
   env.svc.publishVersion(ad, G, 2);
   assert.equal(env.svc.content(G).version, 2);
-  assert.equal(env.svc.record(done.id, rec.id).snapshot.data.title, '深度版：退货率上升，写一份问题诊断与行动建议', '历史记录仍是第 1 版');
+  assert.equal(env.svc.record(done.id, rec.id).snapshot.data.title, '完整版：退货率上升，写一份问题诊断与行动建议', '历史记录仍是第 1 版');
   assert.throws(() => env.store.run("UPDATE experience_versions SET data='{}' WHERE experience_id=? AND version=1", G), /immutable/);
   // 做到一半的学生：继续使用第 1 版
   const gd = env.svc.guide(midway.id, G) as any; assert.equal(gd.version, 1); assert.equal(gd.outdated, true);

@@ -385,6 +385,8 @@ fieldset.qf[disabled] .choice{opacity:.6;cursor:not-allowed}
 @media (max-width:720px){ .matc-b .table{font-size:13px} .matc-b .table th,.matc-b .table td{padding:7px 8px} .matc-h button{padding:12px 14px} .matc-b{padding:0 12px 14px} .bars li{grid-template-columns:minmax(0,1fr) 70px 36px} .hero-h{margin-top:14px} }
 
 /* V1.6 成果 / 规则检查 / 方法 */
+.theme{margin-top:18px}
+.theme-h{font-size:17px;font-weight:800;margin-bottom:10px;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px}
 .work-card{background:var(--surface);border:1px solid var(--line2);border-radius:var(--r);padding:22px;box-shadow:var(--shadow-sm)}
 .wc-head h2{font-size:22px;font-weight:900;margin-top:8px}
 .wc-sec{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}

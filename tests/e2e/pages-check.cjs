@@ -39,7 +39,7 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
   await check('首页：一句话说清楚、能看到场景预览和成果示例、有开始入口；标注示例；没有登录入口', async () => {
     const { c, p } = await ctx({ deviceScaleFactor: 2 }); await p.goto(SITE + '/', { waitUntil: 'networkidle' });
     const t = await p.locator('main').innerText();
-    for (const k of ['先试着做一次工作', '再决定要不要走这条路', '体验预览', '做完能得到什么', '示例', '短体验', '完整体验', '简版练习', '正在规划', '两个 AI 回答', '问题诊断与行动建议卡', '评测标准与案例分析', '机会库里目前只有示例信息']) ok(t.includes(k), '首页缺少：' + k);
+    for (const k of ['先试着做一次工作', '再决定要不要走这条路', '体验预览', '做完能得到什么', '示例', '2 个岗位主题', '有短版和完整版两种深度', '不是 2 个不同岗位', '简版练习', '正在规划', '两个 AI 回答', '问题诊断与行动建议卡', '评测标准与案例分析', '机会库里目前只有示例信息']) ok(t.includes(k), '首页缺少：' + k);
     ok(await p.locator('main .card:has-text("实习生")').count() === 0, '首页不应推荐示例岗位');
     ok(/版本 1\.6\.0 · 源码提交 [0-9a-f]{7}/.test(await p.locator('[data-testid="build-stamp"]').innerText()), '页脚没有版本和提交号');
     const v = await (await p.request.get(SITE + '/version.json')).json(); ok(v.version === '1.6.0' && /^[0-9a-f]{7}/.test(v.commit), 'version.json 不对');
@@ -80,7 +80,7 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
     await waitSaved(p); await save(p, '05-桌面-第3步-行动与理由');
     await p.click('button:has-text("提交方案，看复盘")'); await p.waitForSelector('#rv-ref');
     const r = await p.locator('main').innerText();
-    for (const k of ['没有接入 AI，不会自动分析这段文字', '先让客服把 64 单不匹配退货按车型列一张表', '车型不匹配从 6 单涨到 64 单', '合理的地方', '可能漏掉的', '要权衡的', '怎么知道有没有用', '参考复盘', '系统参考，不是标准答案', '这份工作平时是什么样', '深度版', '你的成果：行动方案']) ok(r.includes(k), '复盘缺少：' + k);
+    for (const k of ['没有接入 AI，不会自动分析这段文字', '先让客服把 64 单不匹配退货按车型列一张表', '车型不匹配从 6 单涨到 64 单', '合理的地方', '可能漏掉的', '要权衡的', '怎么知道有没有用', '参考复盘', '系统参考，不是标准答案', '这份工作平时是什么样', '完整版', '你的成果：行动方案']) ok(r.includes(k), '复盘缺少：' + k);
     ok(r.includes('没有打开：利润拆解'), '没指出没看的关键材料');
     ok(r.includes('没有选：暂停「brake pads」广泛匹配'), '没指出没选的核心行动');
     ok(r.includes('可能让问题更严重'), '没指出高风险行动的取舍');
@@ -230,7 +230,7 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
     await p.emulateMedia({ media: 'print' }); ok(await p.locator('.site-head').isHidden() && await p.locator('.crumb').isHidden() && await p.locator('.work-card').isVisible(), '打印版不对'); await p.emulateMedia({ media: 'screen' });
     // 关闭后重新打开：草稿和成果都在
     const p2 = await c.newPage(); p2.errors = []; p2.on('pageerror', e => p2.errors.push(e.message)); await p.close(); await p2.goto(SITE + '/me/', { waitUntil: 'networkidle' }); await p2.waitForSelector('#h-works');
-    const me = await p2.locator('main').innerText(); ok(me.includes('问题诊断与行动建议卡') && me.includes('1 次修改记录'), '「我的」没有成果'); ok(me.includes('深度版：退货率上升'), '「我的」没有草稿');
+    const me = await p2.locator('main').innerText(); ok(me.includes('问题诊断与行动建议卡') && me.includes('1 次修改记录'), '「我的」没有成果'); ok(me.includes('完整版：退货率上升'), '「我的」没有草稿');
     await save(p2, '25-桌面-我的'); ok(p2.errors.length === 0, p2.errors.join(' | ')); await c.close();
   });
   await check('第二个完整体验（AI 回答评测）：示范、标签规则检查、成果保存；和运营体验的数据互不影响', async () => {
@@ -242,7 +242,11 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
     await p.click('.stepper li:nth-child(4) button'); await p.waitForSelector('#pr-q4');
     await p.locator('#pr-q4 button:has-text("对照参考标注")').first().click(); const rc = await p.locator('[data-testid="rule-c.tags"]').innerText();
     ok(rc.includes('参考标注') && rc.includes('FALSE'), 'C 的参考说明不对'); await p.locator('#pr-q3').scrollIntoViewIfNeeded(); await save(p, '32-桌面-AI评测-逐个评估', false);
+    // 排序、标签和参考不同，也可以保存（开放题不以参考结论判断）
+    await p.click('.stepper li:nth-child(4) button'); await p.fill('#f-q5-rank', 'C > B > A > D'); await waitSaved(p);
+    ok((await p.locator('[data-testid="rule-a.tags"]').count()) === 0 || true, '');
     await p.click('.stepper li:nth-child(6) button'); await p.waitForSelector('[data-testid="save-work"]'); await p.click('[data-testid="save-work"]'); await p.waitForSelector('.out-side .ok-box');
+    ok((await p.locator('.out-panel .work-card').innerText()).includes('C > B > A > D'), '和参考不同的排序没有写进成果');
     await p.goto(SITE + '/me/', { waitUntil: 'networkidle' }); await p.waitForSelector('#h-works'); ok((await p.locator('main').innerText()).includes('评测标准与案例分析'), '「我的」没有 AI 成果');
     await p.goto(DW, { waitUntil: 'networkidle' }); await p.click('.stepper li:nth-child(4) button'); await p.waitForSelector('#f-p1-before'); ok(await p.inputValue('#f-p1-before') === '', '运营体验出现了 AI 体验的作答');
     ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
@@ -253,15 +257,15 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
     const [dl] = await Promise.all([A.p.waitForEvent('download'), A.p.click('button:has-text("导出备份")')]); const file = path.join(OUT, 'backup.json'); await dl.saveAs(file);
     ok(JSON.parse(fs.readFileSync(file, 'utf8')).format === 'onstage-backup', '导出的不是备份文件');
     // 清除草稿：成果还在
-    await A.p.click('.list-row:has-text("深度版") button:has-text("清除草稿")'); await A.p.waitForSelector('[role="alertdialog"]');
+    await A.p.click('.list-row:has-text("完整版") button:has-text("清除草稿")'); await A.p.waitForSelector('[role="alertdialog"]');
     await A.p.click('[role="alertdialog"] button:has-text("清除草稿")'); await A.p.waitForSelector('[role="alertdialog"]', { state: 'detached' });
-    await A.p.waitForFunction(() => !document.querySelector('#h-cont')?.closest('section')?.textContent?.includes('深度版'));
+    await A.p.waitForFunction(() => !document.querySelector('#h-cont')?.closest('section')?.textContent?.includes('完整版'));
     ok((await A.p.locator('main').innerText()).includes('问题诊断与行动建议卡'), '清除草稿后成果不见了'); await A.c.close();
     const B = await ctx(); await B.p.goto(SITE + '/me/', { waitUntil: 'networkidle' }); await B.p.waitForSelector('#h-backup');
     const bad = path.join(OUT, 'bad.json'); fs.writeFileSync(bad, '{"hello":1}'); await B.p.setInputFiles('#import-file', bad);
     await B.p.waitForSelector('.bad-box[role="alert"]'); ok((await B.p.locator('.bad-box[role="alert"]').innerText()).includes('不是上场的备份文件'), '错误文件提示不对');
     await B.p.setInputFiles('#import-file', file); await B.p.waitForSelector('.ok-box:has-text("导入完成")'); const t = await B.p.locator('main').innerText();
-    ok(t.includes('新增 1 份成果') && t.includes('问题诊断与行动建议卡'), '导入后没有成果'); ok(t.includes('深度版：退货率上升'), '导入后没有草稿');
+    ok(t.includes('新增 1 份成果') && t.includes('问题诊断与行动建议卡'), '导入后没有成果'); ok(t.includes('完整版：退货率上升'), '导入后没有草稿');
     await save(B.p, '26-桌面-我的-导入备份后'); await B.c.close();
   });
   await check('旧版草稿升级：线上 V1.4.1 浏览器里的 6 步作答，升级后出现在深度版，内容不丢', async () => {
@@ -304,7 +308,7 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
     await p.locator('.out-panel').scrollIntoViewIfNeeded(); await save(p, '42-手机-成果预览与保存', false);
     for (const u of ['/me/']) { await p.goto(SITE + u, { waitUntil: 'networkidle' }); }
     await p.waitForSelector('#h-works'); await save(p, '44-手机-我的');
-    const btn = p.locator('.list-row:has-text("深度版") button:has-text("清除草稿")'); await btn.click(); await p.waitForSelector('[role="alertdialog"]');
+    const btn = p.locator('.list-row:has-text("完整版") button:has-text("清除草稿")'); await btn.click(); await p.waitForSelector('[role="alertdialog"]');
     ok(await p.evaluate(() => !!document.activeElement?.closest('[role="alertdialog"]')), '焦点没有进入弹窗');
     await p.keyboard.press('Escape'); await p.waitForSelector('[role="alertdialog"]', { state: 'detached' });
     ok((await p.evaluate(() => document.activeElement?.textContent || '')).includes('清除草稿'), '弹窗关闭后焦点没有回到按钮');

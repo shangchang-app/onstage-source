@@ -101,7 +101,7 @@ async function fillAll(p) {
     const txt = await p.locator('main').innerText();
     ok(txt.includes('不代表实习经历或职业资格') && txt.includes('多了不少') && txt.includes('参考思路'), '完成记录内容不完整');
     await shot(p, 'record-desktop');
-    await p.goto(BASE + '/me', { waitUntil: 'networkidle' }); ok((await p.locator('#h-rec').locator('..').locator('..').locator('..').innerText()).includes('深度版：退货率上升'), '「我的」没有完成记录');
+    await p.goto(BASE + '/me', { waitUntil: 'networkidle' }); ok((await p.locator('#h-rec').locator('..').locator('..').locator('..').innerText()).includes('完整版：退货率上升'), '「我的」没有完成记录');
     await shot(p, 'me-desktop');
     ok(p.errors.length === 0, '页面脚本错误：' + p.errors.join(' | '));
     await c.close();
@@ -247,7 +247,7 @@ async function fillAll(p) {
     await adminPage.locator('.panel:has-text("ops-returns-deep") button:has-text("管理版本")').click();
     await adminPage.click('button:has-text("新建版本")'); await adminPage.waitForSelector('button:has-text("编辑内容")');
     await adminPage.click('button:has-text("编辑内容")'); await adminPage.waitForSelector('#ve-h');
-    await adminPage.fill('#af-title', '深度版：退货率上升（第 2 版）');
+    await adminPage.fill('#af-title', '完整版：退货率上升（第 2 版）');
     await adminPage.fill('label:has-text("本版改动说明") input', '标题标注版本，用于测试');
     ok(await adminPage.locator('#ve-h ~ .badge, .badge:has-text("有未保存的修改")').count() > 0, '没有显示未保存提示');
     await adminPage.click('button:has-text("保存草稿")'); await adminPage.waitForSelector('#ve-h', { state: 'detached' });

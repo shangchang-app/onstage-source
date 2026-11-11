@@ -19,7 +19,7 @@ function add(id:string,kind:Kind,data:unknown,company:string|null=null,state='pu
 
 /* ---------- 深度版：6 步引导式岗位体验（V1.4，原旗舰体验） ---------- */
 const deep = {
-  title:'深度版：退货率上升，写一份问题诊断与行动建议', direction:'跨境电商运营', minutes:50, format:'guided', sourceType:'platform',
+  title:'完整版：退货率上升，写一份问题诊断与行动建议', direction:'跨境电商运营', minutes:50, format:'guided', sourceType:'platform',
   level:'入门 · 零基础可做',
   about:'跨境电商运营负责让商品「卖得出去、赚得到钱、少出问题」。这次体验从一个常见问题出发：退货率突然上升，先查什么？',
   willDo:['用 5 个方法读一份 6 周的运营数据','对照退货原因、评论和变更记录，写出可验证的假设','定下周的两个行动，并说清楚怎么判断有效','换一组数据做一次迁移练习，整理成问题诊断与行动建议卡'],

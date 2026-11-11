@@ -112,22 +112,35 @@ test('导出、导入备份：往返一致；不覆盖较新的内容；错误�
   assert.equal(mem.getItem(L.WORKS_KEY), snapshot, '导入失败不应改动现有成果');
 });
 
-test('旧版草稿升级：线上 V1.4.1 的 6 步作答挪到深度版，不丢失；短体验草稿不受影响；只迁移一次', () => {
+test('旧版草稿升级：线上 V1.4.1 的 6 步作答复制到完整版，原处保留（可回滚）；短体验草稿不受影响；只迁移一次', () => {
   const db: any = { owner: 'local:a', drafts: { 'ops-returns': { content_id: 'ops-returns', content_version: 1, version: 3, answers: { 'p1.before': '约 4.7%', 'p5.first': '先核对车型' }, progress: { step: 3, visited: [0, 1, 2, 3] }, conflict: 0, conflict_with: null, saved_at: 't' }, 'yc-quick': { content_id: 'yc-quick', content_version: 1, answers: { '0': 'x' } } }, recoveries: [{ id: 'r1', content_id: 'ops-returns', answers: { 'p2.when': '第 4 周' } }] };
   assert.equal(L.migrateDraftDb(db), true);
-  assert.equal(db.drafts['ops-returns'], undefined); assert.equal(db.drafts['ops-returns-deep'].answers['p1.before'], '约 4.7%'); assert.equal(db.drafts['ops-returns-deep'].progress.step, 3);
-  assert.equal(db.recoveries[0].content_id, 'ops-returns-deep'); assert.ok(db.drafts['yc-quick']); assert.equal(db.schema, 2);
+  assert.equal(db.drafts['ops-returns-deep'].answers['p1.before'], '约 4.7%'); assert.equal(db.drafts['ops-returns-deep'].progress.step, 3);
+  assert.equal(db.drafts['ops-returns'].answers['p1.before'], '约 4.7%', '原处的旧作答应保留，便于回滚'); assert.equal(db.drafts['ops-returns'].progress.step, 0);
+  assert.ok(db.recoveries.some((r: any) => r.content_id === 'ops-returns-deep' && r.answers['p2.when'])); assert.ok(db.recoveries.some((r: any) => r.content_id === 'ops-returns'));
+  db.drafts['ops-returns-deep'].answers['p1.before'] = '改过'; assert.equal(db.drafts['ops-returns'].answers['p1.before'], '约 4.7%', '复制后两份互不影响');
+  assert.ok(db.drafts['yc-quick']); assert.equal(db.schema, 2);
   assert.equal(L.migrateDraftDb(db), false, '不应重复迁移');
   const both: any = { owner: 'o', drafts: { 'ops-returns': { content_id: 'ops-returns', content_version: 1, answers: { 'p1.before': '旧' } }, 'ops-returns-deep': { content_id: 'ops-returns-deep', content_version: 1, answers: { 'p1.before': '新' } } }, recoveries: [] };
   L.migrateDraftDb(both); assert.equal(both.drafts['ops-returns-deep'].answers['p1.before'], '新'); assert.equal(both.recoveries[0].answers['p1.before'], '旧', '两份都有时，旧的放进可恢复的作答');
   const q: any = { owner: 'o', drafts: { 'ops-returns': { content_id: 'ops-returns', content_version: 1, answers: { 'plan.reason': '短体验' } } }, recoveries: [] };
-  L.migrateDraftDb(q); assert.equal(q.drafts['ops-returns'].answers['plan.reason'], '短体验');
-  // 本机暂存和「感受」也一起迁移
+  L.migrateDraftDb(q); assert.equal(q.drafts['ops-returns'].answers['plan.reason'], '短体验'); assert.equal(q.drafts['ops-returns-deep'], undefined);
   mem.setItem('onstage:backup:local:a:ops-returns', JSON.stringify({ answers: { 'p3.main': '暂存' } }));
   mem.setItem('onstage:reflection:ops-returns', JSON.stringify({ owner: 'local:a', reflection: { understand: 'yes', likes: ['读一份 6 周的运营数据'] } }));
   L.migrateLocalKeys();
-  assert.ok(mem.getItem('onstage:backup:local:a:ops-returns-deep')); assert.equal(mem.getItem('onstage:backup:local:a:ops-returns'), null);
-  assert.ok(mem.getItem('onstage:reflection:ops-returns-deep'));
+  assert.ok(mem.getItem('onstage:backup:local:a:ops-returns-deep')); assert.ok(mem.getItem('onstage:backup:local:a:ops-returns'), '原暂存保留');
+  assert.ok(mem.getItem('onstage:reflection:ops-returns-deep')); assert.ok(mem.getItem('onstage:reflection:ops-returns'));
+});
+
+test('保存条件只看必填项是否写了，不看是否和参考一致（数字算错、标签不同、排序不同都可以保存）', () => {
+  const fields = fieldsOf(ai).filter((f: any) => f.required);
+  const ans: Record<string, any> = {}; for (const f of fields) ans[f.id] = f.kind === 'choices' ? [f.options[f.options.length - 1]] : '和参考不同的看法';
+  ans['q5.rank'] = 'C > B > A > D'; ans['c.tags'] = ['没发现明显问题']; ans['q7.shift'] = ['语气友好'];
+  assert.deepEqual(requiredStatus(ai, ans).missing, []);
+  const dfields = fieldsOf(deep).filter((f: any) => f.required); const d: Record<string, any> = {};
+  for (const f of dfields) d[f.id] = f.kind === 'choices' ? [f.options[0]] : '99%';
+  assert.deepEqual(requiredStatus(deep, d).missing, [], '数字算错也能保存');
+  assert.ok(requiredStatus(ai, { ...ans, 'q5.rank': '' }).missing.length === 1, '必填项没写会提醒');
 });
 
 test('完成条件包含迁移练习：只看不做不能保存成果', () => {

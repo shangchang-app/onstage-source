@@ -1,18 +1,61 @@
-# 上场 ONSTAGE · V1.4.1 部署准备版（1.4.1-deploy.1）
-
-> **要部署到线上，先看 `docs/部署指南.md`**（Render 分步操作、费用、国内访问测试、备份恢复）。本版本相对 V1.4.1 的改动见 `docs/部署准备-修改说明.md`。
-
+# 上场 ONSTAGE · V1.6（1.6.0）
 
 找到机会，提前上场。面向大学生的 AI、出海及互联网职业机会与线上岗位体验平台。
 
-本版本在 Codex 已开发的项目（Next.js + Node 内置 SQLite + zod）上继续，新增 **线上岗位体验**：
-一个完整的引导式示范体验「跨境电商运营：商品退货率上升，先查什么？」，以及配套的账号、草稿、版本、后台和企业合作意向。
-V1.4.1 修复了公开状态的优先级问题，补齐了后台内容维护页面，并让测试可以在干净环境中复跑（修改说明见 `docs/V1.4.1-修改说明.md`）。
-招聘专区（V1.3 / V1.3.1）保留，规则不变。
+- 线上试玩版（GitHub Pages，纯静态，无服务器）：<https://shangchang-app.github.io/onstage/>
+- V1.6 预览（由本仓库的 GitHub Actions 从源码自动构建）：<https://shangchang-app.github.io/onstage-source/>
+- 本轮改动：`docs/V1.6-修改说明.md`；验收与发布：`docs/V1.6-验收与发布.md`
 
-> 这是可以在本机运行的开发版本，**没有部署到公网，网站尚未上线**。
+## 两种运行方式
 
-## 环境要求
+| | 静态试玩版（当前线上用的） | 正式版（需要服务器，尚未部署） |
+|---|---|---|
+| 构建 | `npm run build:static` → `dist-pages/` | `npm run build` + `npm start` |
+| 数据 | 草稿和成果只在访客自己的浏览器里（localStorage） | 服务器 SQLite 数据库 |
+| 测试 | `npm run test:pages`（静态版专用，模拟 GitHub Pages 子路径） | `npm run test:e2e`、`npm run test:deploy` |
+
+**两者的测试互相不能代替**：正式版测试通过，不代表静态版能用。
+
+## 从干净检出生成待发布网站（静态版）
+
+需要：Node.js 24（`.node-version`；最低 22.13）、git、npm。
+
+```bash
+git clone https://github.com/shangchang-app/onstage-source.git
+cd onstage-source
+npm ci                                   # 按 package-lock.json 安装，不改版本
+npm run typecheck && npm test            # 类型检查 + 单元测试（47 项）
+npx playwright install chromium          # 第一次运行浏览器测试前需要（CI 里加 --with-deps）
+npm run build:static                     # 输出 dist-pages/，网址前缀 /onstage（线上仓库名）
+npm run test:pages                       # 在模拟的 GitHub Pages /onstage/ 下用 Chromium 实测（21 项）
+npm run package:pages                    # 打成 release/onstage-site-<版本>-<提交>.zip，并输出 SHA256
+```
+
+- 一条命令：`npm run release`（构建 + 静态版测试 + 打包）。
+- 换网址前缀：`npm run build:static -- --base=/仓库名`，测试时设置 `PAGES_BASE=/仓库名`。
+- `dist-pages/version.json` 和网站页脚会写入：`version`（版本号）、`commit`（源码提交号，有未提交改动时带 `-modified`）、`builtAt`（构建时间）、`base`。
+- 发布包 zip 内文件顺序和时间固定。不同次构建因为构建时间和 Next.js 构建编号不同，校验值会不一样，**以 GitHub Actions 发布的 Release 附件及其 SHA256 为准**（见下）。
+
+## 持续构建与预览（GitHub Actions）
+
+`.github/workflows/preview.yml`：每次推送到 `main`，都会在干净环境里依次运行：
+
+1. `npm ci`、类型检查、单元测试；
+2. 用前缀 `/onstage` 构建线上发布包，并运行静态版测试，然后打包；
+3. 用前缀 `/onstage-source` 构建预览，并运行静态版测试；
+4. 把发布包和 `.sha256` 发到本仓库的 Releases（标签 `build-<提交号前 7 位>`，标为预发布）；
+5. 把预览部署到 GitHub Pages。
+
+测试日志和截图作为 Actions 附件保存。
+
+## 发布到线上与回滚
+
+线上仓库 `shangchang-app/onstage` 只放发布包，不放源码。它的 Actions 会解压根目录里**唯一的** `.zip`，然后发布。
+
+- **发布**：从本仓库 Releases 下载对应提交的 `onstage-site-…zip`，核对 SHA256；再在线上仓库删掉旧的 zip、上传新的 zip，等 Actions 变绿；最后打开 `/onstage/version.json` 核对提交号。
+- **回滚**：线上仓库的标签 `v1.4.1-live` 指向 V1.4.1 的部署提交。用那个标签下的 `site.zip` 替换当前 zip 即可（详细步骤和本地数据兼容性见 `docs/V1.6-验收与发布.md`）。
+
+## 正式版（服务器）：环境要求
 
 - Node.js 24 LTS（最低 22.13；需要自带的 `node:sqlite`。Node 22 会打印一条 SQLite experimental 提示，可以忽略）
 - 不需要安装数据库，数据保存在一个 SQLite 文件里

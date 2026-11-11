@@ -13,6 +13,8 @@ export function Home() {
   const sorted = [...exps].sort((a, b) => order[expKind(a.data)] - order[expKind(b.data)]);
   const flagship = sorted.find(i => expKind(i.data) === 'quick');
   const full = sorted.filter(i => expKind(i.data) !== 'simple'), simple = sorted.filter(i => expKind(i.data) === 'simple');
+  /* 按岗位主题分组：同一主题的短版和完整版放在一起，不当成不同岗位 */
+  const themes = [...new Set(full.map(i => i.data.direction as string))].map(dir => [dir, full.filter(i => i.data.direction === dir)] as const);
   const start = flagship ? '/experiences/' + flagship.id + '/work' : '/experiences';
   return <>
     <div className="wrap hero hero-v15">
@@ -35,8 +37,8 @@ export function Home() {
       </div>
     </div>
     {error ? <div className="wrap"><ErrorBox text={error} /></div> : loading ? <Loading /> : <div className="wrap">
-      <section className="sec" aria-labelledby="h-exp"><div className="sec-h"><div><span className="sec-no">01</span><h2 id="h-exp">完整可用的岗位体验</h2><p>都可以随时暂停，下次在同一个浏览器里接着做。做完可以把成果保存在本机。</p></div><Link className="link-more" href="/experiences">全部岗位体验 →</Link></div>
-        <Grid items={full} />
+      <section className="sec" aria-labelledby="h-exp"><div className="sec-h"><div><span className="sec-no">01</span><h2 id="h-exp">现在能完整做完的：{themes.length} 个岗位主题</h2><p>都可以随时暂停，下次在同一个浏览器里接着做。做完可以把成果保存在本机。</p></div><Link className="link-more" href="/experiences">全部岗位体验 →</Link></div>
+        {themes.map(([dir, list]) => <div className="theme" key={dir}><h3 className="theme-h">{dir}<span className="small muted">{list.length > 1 ? `同一个情境，有短版和完整版两种深度（共 ${list.length} 个入口），不是 ${list.length} 个不同岗位` : '完整版'}</span></h3><Grid items={list} /></div>)}
         {simple.length > 0 && <div className="simple-list"><b className="small">简版练习</b><span className="small muted">只有任务和参考思路，没有成果页，完整版本还在制作：</span>
           <ul>{simple.map(i => <li key={i.id}><Link href={'/experiences/' + i.id}>{i.data.title}</Link> <span className="xs muted">{i.data.direction} · 约 {i.data.minutes} 分钟</span></li>)}</ul></div>}
         <p className="small muted" style={{ marginTop: 12 }}>正在规划（还不能体验）：游戏版本反馈分析。</p>
@@ -94,11 +96,11 @@ export function Catalog({ kind }: { kind: string }) {
     experience: ['岗位体验', '线上岗位体验：用模拟的工作场景，提前做一次岗位上的事。自愿参加，不是实习，也不影响投递。'],
     company: ['企业', '了解企业在做什么、有哪些职业方向。以下均为示例企业，上场与它们没有真实合作关系。']
   };
-  const types = kind === 'job' ? [['intern', '实习'], ['campus', '校招']] : kind === 'event' ? [['hack', '黑客松'], ['competition', '企业商赛']] : kind === 'experience' ? [['quick', '短体验'], ['deep', '完整体验'], ['simple', '简版练习']] : [];
+  const types = kind === 'job' ? [['intern', '实习'], ['campus', '校招']] : kind === 'event' ? [['hack', '黑客松'], ['competition', '企业商赛']] : kind === 'experience' ? [['quick', '短版'], ['deep', '完整版'], ['simple', '简版练习']] : [];
   return <div className="wrap page">
     {(kind === 'job' || kind === 'event') && <LibSwitch cur={kind === 'job' ? 'jobs' : 'events'} />}
     <div className="ph"><h1>{head[kind][0]}</h1><p className="lede">{head[kind][1]}</p></div>
-    {kind === 'experience' && <div className="notice" style={{ marginBottom: 8 }}><b>短体验</b>：5–10 分钟，收到任务、看材料、给方案、看复盘。<b>完整体验</b>：6 步引导，示范学方法、独立练习、迁移练习，最后保存成果，40–50 分钟。<b>简版练习</b>：只有任务和参考思路，完整版本还在制作中。</div>}
+    {kind === 'experience' && <div className="notice" style={{ marginBottom: 8 }}>现在有 2 个岗位主题可以完整做完：跨境电商运营、AI 产品运营。<b>短版</b>：5–10 分钟，收到任务、看材料、给方案、看复盘（跨境电商运营）。<b>完整版</b>：6 步引导，示范学方法、独立练习、迁移练习，最后保存成果，40–50 分钟。跨境电商运营的短版和完整版是同一个情境的两种深度。<b>简版练习</b>：只有任务和参考思路，完整版本还在制作中。</div>}
     <div className="filters">
       <label>搜索<input className="input" type="search" placeholder="名称、方向、城市" value={q} onChange={e => setQ(e.target.value)} /></label>
       {types.length > 0 && <label>类型<select className="select" value={type} onChange={e => setType(e.target.value)}><option value="">全部类型</option>{types.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>}
