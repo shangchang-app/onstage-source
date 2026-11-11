@@ -1,0 +1,32 @@
+# Render Blueprint（试用版）：1 个网页服务 + 1 块持久化磁盘，新加坡机房。
+# 在 Render 控制台选择 New → Blueprint，连接存放本项目的 GitHub 仓库即可按这个文件创建。
+# 费用（以 Render 当时的价格页为准）：网页服务 0.5c-512mb 约 7 美元/月；磁盘 1 GB 约 0.25 美元/月。免费实例不能挂磁盘，不能用于本项目。
+services:
+  - type: web
+    name: onstage-trial            # 决定测试地址：https://onstage-trial.onrender.com（名字被占用时 Render 会加后缀）
+    runtime: node
+    plan: 0.5c-512mb
+    region: singapore              # 创建后不能更改
+    # 构建时需要 TypeScript 等开发依赖，所以带 --include=dev
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    # 挂了磁盘的服务不能多实例运行（Render 也不允许），部署时会有几秒停机，这是为了保护数据库文件。
+    disk:
+      name: onstage-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: DATABASE_PATH
+        value: /var/data/onstage.sqlite
+      - key: DEMO_CONTENT
+        value: seed-if-empty
+      - key: SESSION_DAYS
+        value: "30"
+      - key: AUTH_SECRET
+        generateValue: true
+      # APP_ORIGIN 不在这里设置：不填时自动使用 Render 分配的 https://xxx.onrender.com。
+      # 以后绑定自己的域名：在控制台 Environment 页面新增 APP_ORIGIN=https://新域名,https://xxx.onrender.com

@@ -1,0 +1,14 @@
+ALTER TABLE users ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0;
+CREATE TABLE enterprise_access (company_id TEXT PRIMARY KEY REFERENCES content(id), verified INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 0, recruitment INTEGER NOT NULL DEFAULT 0, evidence TEXT NOT NULL, updated_at TEXT NOT NULL);
+CREATE TABLE enterprise_members (user_id TEXT PRIMARY KEY REFERENCES users(id), company_id TEXT NOT NULL REFERENCES content(id), active INTEGER NOT NULL DEFAULT 1, updated_at TEXT NOT NULL);
+CREATE TABLE profiles (owner TEXT PRIMARY KEY REFERENCES users(id), version INTEGER NOT NULL, enabled INTEGER NOT NULL DEFAULT 0, data TEXT NOT NULL CHECK(json_valid(data)), updated_at TEXT NOT NULL);
+CREATE TABLE works (id TEXT PRIMARY KEY, owner TEXT NOT NULL REFERENCES users(id), record_id TEXT NOT NULL REFERENCES submissions(id), version INTEGER NOT NULL, visibility TEXT NOT NULL DEFAULT 'private' CHECK(visibility IN ('private','profile')), data TEXT NOT NULL CHECK(json_valid(data)), created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+CREATE TABLE deliveries (id TEXT PRIMARY KEY, work_id TEXT NOT NULL REFERENCES works(id), owner TEXT NOT NULL REFERENCES users(id), company_id TEXT NOT NULL REFERENCES content(id), work_version INTEGER NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('challenge','share')), snapshot TEXT NOT NULL CHECK(json_valid(snapshot)), active INTEGER NOT NULL DEFAULT 1, state TEXT NOT NULL DEFAULT 'pending' CHECK(state IN ('pending','viewed','invited','declined')), created_at TEXT NOT NULL, revoked_at TEXT, UNIQUE(work_id,company_id,work_version,kind));
+CREATE TABLE enterprise_reviews (company_id TEXT NOT NULL REFERENCES content(id), target TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', state TEXT NOT NULL DEFAULT 'pending', PRIMARY KEY(company_id,target));
+CREATE TABLE notifications (id TEXT PRIMARY KEY, owner TEXT NOT NULL REFERENCES users(id), company_id TEXT NOT NULL REFERENCES content(id), target TEXT NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('feedback','invite')), message TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'unread', contact TEXT, created_at TEXT NOT NULL);
+CREATE TABLE access_events (id INTEGER PRIMARY KEY AUTOINCREMENT, owner TEXT NOT NULL REFERENCES users(id), company_id TEXT, actor TEXT NOT NULL, action TEXT NOT NULL, target TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE INDEX works_owner ON works(owner);
+CREATE INDEX deliveries_company ON deliveries(company_id,active);
+CREATE INDEX notifications_owner ON notifications(owner);
+CREATE TRIGGER immutable_delivery BEFORE UPDATE OF snapshot,work_version,owner,company_id,work_id ON deliveries BEGIN SELECT RAISE(ABORT,'delivery snapshots are immutable'); END;
+CREATE TRIGGER immutable_completion BEFORE UPDATE ON submissions BEGIN SELECT RAISE(ABORT,'completion snapshots are immutable'); END;

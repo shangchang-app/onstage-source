@@ -1,0 +1,12 @@
+node_modules/
+.next/
+.env*
+!.env.example
+data/*
+!data/.gitkeep
+*.tsbuildinfo
+test-results/
+AGENTS.md
+.next-e2e/
+.next-e2e-prod/
+dist-pages/
