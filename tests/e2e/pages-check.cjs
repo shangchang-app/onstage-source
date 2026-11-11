@@ -26,7 +26,7 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
   ok(fs.existsSync(path.join(ROOT, '.nojekyll')), '缺少 .nojekyll（GitHub Pages 会忽略 _next 目录）');
   const port = await freePort(); const server = http.createServer(serve).listen(port, '127.0.0.1');
   const SITE = `http://127.0.0.1:${port}${BASE}`, W = SITE + '/experiences/ops-returns/work/', DW = SITE + '/experiences/ops-returns-deep/work/';
-  const b = await chromium.launch();
+  const b = await chromium.launch(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH, args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage'] } : {}); // CHROME_PATH：没有 Playwright 自带浏览器时用本机 Chrome
   const ctx = async (o = {}) => { const c = await b.newContext({ viewport: { width: 1280, height: 860 }, ...o }); const p = await c.newPage(); p.errors = []; p.on('pageerror', e => p.errors.push(e.message)); p.on('console', m => { if (m.type() === 'error') p.errors.push(m.text()); }); return { c, p }; };
   const waitSaved = p => p.waitForFunction(() => /已保存/.test(document.querySelector('.work-head .save-state')?.textContent || ''), null, { timeout: 15000 });
   const practice = async p => { await p.goto(DW, { waitUntil: 'networkidle' }); await p.click('.stepper li:nth-child(4) button'); await p.waitForSelector('#f-p1-before'); };
@@ -42,13 +42,14 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
   const saveState = p => p.locator('.work-head .save-state').innerText();
   const toPlan = async p => { await p.goto(W, { waitUntil: 'networkidle' }); await p.click('.stepper li:nth-child(3) button'); await p.waitForSelector('#f-plan-reason'); };
 
-  await check('首页：品牌和副标题、趣味入口（未开放不显示按钮）、下面直接是岗位实践；标注示例；没有登录入口', async () => {
+  await check('首页：品牌和副标题、趣味入口（按钮打开 /buddy/）、下面直接是岗位实践；标注示例；没有登录入口', async () => {
     const { c, p } = await ctx({ deviceScaleFactor: 2 }); await p.goto(SITE + '/', { waitUntil: 'networkidle' });
     const t = await p.locator('main').innerText();
     for (const k of ['on stage', '探索工作，也探索自己。', '你的隐藏工位搭子，', '藏不住了。', '情境娱乐探索，非专业人格或职业测评。', '做完能得到什么', '示例', '3 个岗位主题', '有短版和完整版两种深度', '不是 2 个不同岗位', '简版练习', '正在规划', '两个 AI 回答', '问题诊断与行动建议卡', '评测标准与案例分析', '机会库里目前只有示例信息']) ok(t.includes(k), '首页缺少：' + k);
     ok(await p.locator('main .card:has-text("实习生")').count() === 0, '首页不应推荐示例岗位');
     ok(!t.includes('找到机会，提前上场') && !t.includes('先试着做一次工作'), '首页还有旧副标题或重复的大标题');
-    ok(await p.locator('main :is(a,button):has-text("看看是谁")').count() === 0 && await p.locator('[data-testid="fun-soon"]').count() === 1, '动物模块未完成时不应显示按钮');
+    // V1.7 隐藏工位搭子模块已完成：按钮打开 /buddy/（详细检查在 buddy-check.cjs）
+    ok(await p.locator('main .fun a:has-text("看看是谁")').getAttribute('href') === BASE + '/buddy/', '趣味入口按钮应打开 /buddy/');
     const fun = await p.locator('.fun').boundingBox(), exp = await p.locator('#h-exp').boundingBox(); ok(fun && exp && exp.y > fun.y && exp.y < 860, '岗位实践区应紧跟趣味入口，并在第一屏能看到');
     ok(/版本 1\.7\.0 · 源码提交 [0-9a-f]{7}/.test(await p.locator('[data-testid="build-stamp"]').innerText()), '页脚没有版本和提交号');
     const v = await (await p.request.get(SITE + '/version.json')).json(); ok(v.version === '1.7.0' && /^[0-9a-f]{7}/.test(v.commit), 'version.json 不对');

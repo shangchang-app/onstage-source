@@ -1,0 +1,97 @@
+name: PR tests
+# 合并前测试（pull_request）：只读。不写仓库、不建 Release、不部署任何网站、不使用任何密钥。
+# 用 pull_request（不是 pull_request_target）：来自 fork 的 PR 拿到的是只读令牌，也拿不到仓库密钥。
+#
+# 这里检查：类型、单元测试（含隐藏工位搭子规则穷举）、规则表是否最新、静态构建（线上路径 /onstage 和预览路径 /<仓库名>）、
+# 路由与页面浏览器测试、二维码内容（解码核对）和二维码路径在本机能打开、同源升级与回滚。
+# 这里不检查：线上预览网址能不能打开、线上的提交号——那个网址要等合并、部署之后才有，
+# 由 preview.yml 里部署成功后的 verify-deployed-preview 检查。本工作流不会把它标成通过。
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pr-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - name: Install (npm ci)
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests (incl. buddy rules, exhaustive 65,536 answers)
+        run: npm test
+      - name: Rules table is up to date
+        run: |
+          npm run buddy:rules
+          git diff --exit-code -- docs/ || { echo "::error::规则表不是最新的：请运行 npm run buddy:rules 并提交 docs/V1.7-隐藏工位搭子-规则表.md"; exit 1; }
+
+  pages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium for browser tests
+        run: npx playwright install --with-deps chromium
+      - name: Live path (/onstage) — build, browser tests, local QR check
+        run: |
+          set -o pipefail
+          npm run build:static 2>&1 | tee pr-build-live.log
+          PAGES_BASE=/onstage npm run test:pages 2>&1 | tee pr-pages-live.log
+          node scripts/check-qr-target.mjs --local dist-pages 2>&1 | tee pr-qr-local-live.log
+          mv test-results out-live
+      - name: Preview path (/${{ github.event.repository.name }}) — build, browser tests, local QR check
+        run: |
+          set -o pipefail
+          npm run build:static -- --base=/${{ github.event.repository.name }} 2>&1 | tee pr-build-preview.log
+          PAGES_BASE=/${{ github.event.repository.name }} npm run test:pages 2>&1 | tee pr-pages-preview.log
+          node scripts/check-qr-target.mjs --local dist-pages 2>&1 | tee pr-qr-local-preview.log
+          cp -r dist-pages preview-build
+          mv test-results out-preview
+      - name: Same-origin upgrade and rollback (live V1.4.1 -> this PR -> V1.4.1 -> this PR)
+        run: |
+          set -o pipefail
+          # 线上当前发布包：线上仓库提交 5eed8ae 里的 site.zip（公开文件，只读下载），先核对校验值
+          curl -sSfL -o live-site.zip https://github.com/shangchang-app/onstage/raw/5eed8ae/site.zip
+          echo "10d61ad446206bcc95fcf76827a61d54b5bae5f06f2b6fd35c0c7b6e0cb44f23  live-site.zip" | sha256sum -c - 2>&1 | tee pr-rollback.log
+          mkdir -p live-old && unzip -q live-site.zip -d live-old
+          npm run test:rollback -- live-old preview-build 2>&1 | tee -a pr-rollback.log
+          mv test-results out-rollback
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### PR 测试范围"
+            echo "- 已检查：构建（/onstage、/${{ github.event.repository.name }}）、页面与路由浏览器测试、二维码内容（解码）、二维码路径在本机能打开、同源回滚。"
+            echo "- **未检查（不是通过）**：线上预览网址能否打开、线上提交号。要等合并到 main 并部署成功后，由「Build, test and preview → verify-deployed-preview」检查。"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep logs, screenshots and share cards
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-logs-and-screenshots
+          path: |
+            pr-*.log
+            out-live/
+            out-preview/
+            out-rollback/
+          if-no-files-found: warn
