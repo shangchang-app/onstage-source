@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { quickData, quickPractice } from './case-ops-returns';
 import { deepLessons, deepPractice, deepOutput, deepProvenance } from './exp-ops-deep';
 import { aiEval } from './exp-ai-eval';
+import { overseasGrowth } from './exp-overseas-growth';
 /* 演示数据：与迁移分开。只用于开发 / 测试，生产环境拒绝运行。测试直接调用 seed(store)，不需要启动子进程。 */
 /* allowProduction：只给「试用版空数据库自动放入演示内容」（DEMO_CONTENT=seed-if-empty）使用；内容全部标为示例。 */
 export function seed(db: Store, opts: { allowProduction?: boolean } = {}) {
@@ -148,6 +149,7 @@ db.transaction(()=>{
   add('ops-returns','experience',quick,null);
   add('ops-returns-deep','experience',deep,null);
   add('ai-eval','experience',aiEval,null);
+  add('overseas-growth','experience',overseasGrowth,null);
   const simple=(title:string,direction:string,minutes:number,about:string,scene:string,tasks:unknown[],willDo:string[],deliverable:string)=>({title,direction,minutes,about,scene,tasks,format:'simple',sourceType:'platform',level:'简版练习 · 零基础可做',willDo,deliverable,learn:['一个具体任务的做法和参考思路']});
   add('yc-quick','experience',simple('这条差评，你先查什么？','跨境电商运营',10,'跨境电商运营负责上架、定价、广告和售后数据，每天都要看订单、评论和退货。','一款刹车片上线两周，退货率从 6% 升到了 11%。今天收到一条 1 星差评：\n“Doesn’t fit my 2019 Camry even though the listing said it would.”',[{title:'你第一步先做什么？',prompt:'选择一个行动，并用一两句话说明理由。',options:['降价 10%，挽回转化','检查商品页的适配车型信息','加大广告投放','联系物流商更换渠道'],reference:'先查适配车型信息。买家指出“不匹配”，应先核对商品页车型信息。自查：是否从差评定位问题？是否意识到加广告会放大不匹配问题？'}],['读一条差评，决定第一步查什么'],'一个选择 + 一两句理由'),'yc');
   add('yc-std','experience',simple('新品上架的第一个月','跨境电商运营',35,'对一个商品的赚不赚钱、卖不卖得动负责。','主管把陶瓷刹车片新品交给你，希望你先算清楚一单能赚多少，再看看两周的数据。',[{title:'算一单账',prompt:'售价 $39.99；平台佣金 12%；FBA 配送费 $6.50；货成本（含头程）$15.69。\n平台和物流共拿走多少？扣货成本还剩多少？写出计算过程。',reference:'佣金约 $4.80，加 FBA 共 $11.30。扣掉货成本后约 $13.00，尚未扣广告及退货。自查：佣金基数、物流、货成本是否齐全？'},{title:'读两周数据',prompt:'第 1 周 → 第 2 周：\n点击率 0.85% → 1.05%\n广告转化率 9.3% → 8.1%\n退货率 6.0% → 11.0%\n差评：“Fitment info is confusing, had to return.”\n你会先解决什么？',reference:'点击涨、转化跌、退货升，评论指向适配信息。先补全适配车型，再考虑加投广告。自查：是否同时看三个指标，并与评论联系？'}],['算一单商品的利润','读两周数据，决定先解决什么'],'一笔利润账 + 一个优先级判断'),'yc');
