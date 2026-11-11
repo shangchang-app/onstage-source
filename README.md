@@ -28,7 +28,7 @@ npm ci                                   # 按 package-lock.json 安装，不改
 npm run typecheck && npm test            # 类型检查 + 单元测试（47 项）
 npx playwright install chromium          # 第一次运行浏览器测试前需要（CI 里加 --with-deps）
 npm run build:static                     # 输出 dist-pages/，网址前缀 /onstage（线上仓库名）
-npm run test:pages                       # 在模拟的 GitHub Pages /onstage/ 下用 Chromium 实测（25 项）
+npm run test:pages                       # 在模拟的 GitHub Pages /onstage/ 下用 Chromium 实测（27 项）
 # 同源升级与回滚（单独执行）：npm run test:rollback -- <V1.4.1 解压目录> <用 --base=/onstage-source 构建的目录>
 npm run package:pages                    # 打成 release/onstage-site-<版本>-<提交>.zip，并输出 SHA256
 ```
@@ -45,8 +45,9 @@ npm run package:pages                    # 打成 release/onstage-site-<版本>-
 1. `npm ci`、类型检查、单元测试；
 2. 用前缀 `/onstage` 构建线上发布包，并运行静态版测试，然后打包；
 3. 用前缀 `/onstage-source` 构建预览，并运行静态版测试；
-4. 把发布包和 `.sha256` 发到本仓库的 Releases（标签 `build-<提交号前 7 位>`，标为预发布）；
-5. 把预览部署到 GitHub Pages。
+4. 同源升级与回滚测试：下载线上 V1.4.1 发布包（核对 SHA256），和新预览放在同一个源下来回切换；
+5. 发布包另存为构建附件 `release-package`，并发到本仓库的 Releases（标签 `build-<提交号前 7 位>`，标为预发布；这一步失败不影响预览部署，发布包仍可从附件下载）；
+6. 把预览部署到 GitHub Pages。
 
 测试日志和截图作为 Actions 附件保存。
 

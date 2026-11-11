@@ -32,7 +32,13 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
   const practice = async p => { await p.goto(DW, { waitUntil: 'networkidle' }); await p.click('.stepper li:nth-child(4) button'); await p.waitForSelector('#f-p1-before'); };
 
 
-  const save = (p, name, full = true) => p.screenshot({ path: path.join(DELIVER, name + '.png'), fullPage: full });
+  // 手机整页截图：底部导航是固定定位，整页截图时会叠在页面中间。截整页时临时把它放回页面末尾（用户滚到底时看到的位置），截完恢复；首屏截图保持原样。
+  const save = async (p, name, full = true) => {
+    const mobile = full && await p.evaluate(() => { const t = document.querySelector('.tabbar'); return !!t && getComputedStyle(t).display !== 'none'; });
+    if (mobile) await p.addStyleTag({ content: '.tabbar{position:static!important}' }).then(h => h.evaluate(e => e.id = 'shot-fix'));
+    await p.screenshot({ path: path.join(DELIVER, name + '.png'), fullPage: full });
+    if (mobile) await p.evaluate(() => document.getElementById('shot-fix')?.remove());
+  };
   const saveState = p => p.locator('.work-head .save-state').innerText();
   const toPlan = async p => { await p.goto(W, { waitUntil: 'networkidle' }); await p.click('.stepper li:nth-child(3) button'); await p.waitForSelector('#f-plan-reason'); };
 
@@ -363,6 +369,30 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
     const css = await p.evaluate(() => [...document.styleSheets].flatMap(s => { try { return [...s.cssRules].map(r => r.cssText); } catch { return []; } }).join('\n'));
     for (const hex of ['207, 68, 16', '242, 106, 46', '253, 237, 227', '#cf4410', '#f26a2e', '#fdede3']) ok(!css.toLowerCase().includes(hex), '样式里还有原来的橙色：' + hex);
     ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
+  });
+
+  await check('V1.7 手机首屏：品牌、趣味入口之后，第一屏就能看到岗位实践；底部导航不透明，不叠字', async () => {
+    const { c, p } = await ctx({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    await p.goto(SITE + '/', { waitUntil: 'networkidle' });
+    const r = await p.evaluate(() => ({ exp: document.querySelector('#h-exp').getBoundingClientRect().bottom, bar: document.querySelector('.tabbar').getBoundingClientRect().top, bg: getComputedStyle(document.querySelector('.tabbar')).backgroundColor }));
+    ok(r.exp < r.bar, '手机第一屏看不到岗位实践标题：' + JSON.stringify(r));
+    ok(!/rgba\(.*,\s*0?\.\d+\)$/.test(r.bg), '底部导航背景是半透明的，会透出下面的文字：' + r.bg);
+    for (const [u, n] of [['/', '60-手机-首页-首屏'], ['/experiences/', '60-手机-岗位体验-首屏'], ['/me/', '60-手机-我的-首屏']]) { await p.goto(SITE + u, { waitUntil: 'networkidle' }); await p.waitForTimeout(200); await save(p, n, false); }
+    ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
+  });
+
+  await check('V1.7 成果打印：打印 / 存为 PDF 只输出成果卡，不带导航和按钮；生成真实 PDF', async () => {
+    const { c, p } = await ctx({ deviceScaleFactor: 2 });
+    await doFull(p, DW, '打印'); await p.waitForSelector('[data-testid="save-work"]');
+    await p.click('[data-testid="save-work"]'); await p.waitForSelector('.out-side .ok-box');
+    await p.goto(SITE + '/me/', { waitUntil: 'networkidle' }); await p.waitForSelector('#h-works'); await p.click('.list-row a:has-text("打开")'); await p.waitForSelector('.work-card');
+    await p.emulateMedia({ media: 'print' });
+    const vis = await p.evaluate(() => { const shown = s => [...document.querySelectorAll(s)].some(e => e.offsetParent && getComputedStyle(e).visibility !== 'hidden'); return { nav: shown('.site-head, .tabbar, .foot'), btn: shown('.btn'), card: shown('.work-card') }; });
+    ok(vis.card && !vis.nav && !vis.btn, '打印时没有只保留成果卡：' + JSON.stringify(vis));
+    const pdf = path.join(DELIVER, '80-成果打印.pdf'); await p.pdf({ path: pdf, format: 'A4', printBackground: true });
+    ok(fs.statSync(pdf).size > 10000, 'PDF 太小，可能是空白页');
+    try { require('node:child_process').execFileSync('pdftoppm', ['-png', '-r', '80', '-f', '1', '-l', '1', pdf, path.join(DELIVER, '80-成果打印-第1页')]); } catch { /* 没有 pdftoppm 时只保留 PDF */ }
+    await p.emulateMedia({ media: 'screen' }); ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
   });
 
   await check('V1.7 截图：真实页面（手机与桌面）', async () => {
