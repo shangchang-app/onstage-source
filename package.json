@@ -23,11 +23,12 @@
     "test:e2e": "node tests/e2e/run.mjs",
     "test:e2e:screens": "node tests/e2e/run.mjs --mode=screens",
     "test:deploy": "node tests/e2e/run.mjs --mode=deploy",
-    "test:pages": "node tests/e2e/pages-check.cjs dist-pages && node tests/e2e/buddy-check.cjs dist-pages && node tests/e2e/growth-check.cjs dist-pages",
+    "test:pages": "node tests/e2e/pages-check.cjs dist-pages && node tests/e2e/buddy-check.cjs dist-pages && node tests/e2e/growth-check.cjs dist-pages && node tests/e2e/integration-check.cjs dist-pages",
     "buddy:rules": "tsx scripts/buddy-rules.ts docs/V1.7-隐藏工位搭子-规则表.md",
     "check:qr-target": "node scripts/check-qr-target.mjs",
     "test:rollback": "node tests/e2e/rollback-check.cjs",
     "test:growth": "node tests/e2e/growth-check.cjs dist-pages",
+    "test:integration": "node tests/e2e/integration-check.cjs dist-pages",
     "verify": "npm run typecheck && npm test && npm run build && npm run test:e2e && npm run test:e2e:screens && npm run test:deploy",
     "package:pages": "node scripts/package-pages.mjs",
     "release": "npm run build:static && npm run test:pages && npm run package:pages"

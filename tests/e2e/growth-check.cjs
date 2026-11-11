@@ -180,7 +180,7 @@ const PICK = { 'g1.segment': '夜市摊主', 'g5.method': '人工代记账：团
     ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
   });
 
-  await check('键盘：只用键盘就能选选项、填文字；必填没写时保存区列出还差哪些，点一下回到对应的题目', async () => {
+  await check('键盘：只用键盘就能选选项、填文字；必填没写时保存区列出还差哪些，点一下定位并聚焦对应的输入框', async () => {
     const { c, p } = await ctx();
     await p.goto(GW, { waitUntil: 'networkidle' }); await step(p, 4); await p.waitForSelector('#pr-g1');
     const first = p.locator('#pr-g1 fieldset input').first(); await first.focus(); await p.keyboard.press('Space');
@@ -193,9 +193,8 @@ const PICK = { 'g1.segment': '夜市摊主', 'g5.method': '人工代记账：团
     await step(p, 6); await p.waitForSelector('#out-h');
     const notice = p.locator('.out-side .notice'); ok((await notice.innerText()).includes('还差'), '没有列出还差哪些');
     await notice.locator('button', { hasText: '还缺什么信息' }).first().click(); await p.waitForTimeout(400);
-    // 现有共享组件的行为：回到对应的步骤并滚动到那一题（焦点在步骤标题上），不是直接聚焦到输入框
-    ok(await p.locator('#f-g6-missing').count() === 1, '点「还差」里的项目没有回到对应的步骤');
-    ok(await p.evaluate(() => { const r = document.getElementById('pr-g6').getBoundingClientRect(); return r.top < innerHeight && r.bottom > 0; }), '没有滚动到对应的题目');
+    ok(await p.evaluate(() => document.activeElement?.id) === 'f-g6-missing', '点「还差」里的项目没有聚焦到对应的输入框');
+    ok(await p.evaluate(() => { const r = document.getElementById('f-g6-missing').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; }), '对应的输入框不在可见范围');
     ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
   });
 
