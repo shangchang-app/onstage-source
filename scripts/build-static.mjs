@@ -7,7 +7,7 @@
 
    试玩版和正式版的区别：没有服务器和数据库；内容是打包时的演示内容；作答只保存在访客自己的浏览器里；
    没有登录、完成记录、收藏、后台、反馈和合作表单提交。 */
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, rmdirSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, rmdirSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -28,6 +28,7 @@ try {
   symlinkSync(join(root, 'node_modules'), join(app, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
   // 试玩版不需要的服务端页面：接口、后台、管理员登录、完成记录页、动态 robots
   for (const p of ['src/app/api', 'src/app/admin', 'src/app/login/link', 'src/app/records', 'src/app/robots.ts']) rmSync(join(app, p), { recursive: true, force: true });
+  mkdirSync(join(app, 'public'), { recursive: true }); // 干净检出里没有 public/（git 不保存空目录）
   writeFileSync(join(app, 'public', 'robots.txt'), 'User-agent: *\nDisallow: /\n');
   writeFileSync(join(app, 'public', '.nojekyll'), ''); // GitHub Pages 默认会忽略以 _ 开头的目录（_next），这个文件关闭该行为
   // 演示内容与静态页面列表
