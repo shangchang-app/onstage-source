@@ -42,7 +42,17 @@ jobs:
           set -o pipefail
           npm run build:static -- --base=/${{ github.event.repository.name }} 2>&1 | tee ci-build-preview.log
           PAGES_BASE=/${{ github.event.repository.name }} npm run test:pages 2>&1 | tee ci-pages-preview.log
+          cp -r dist-pages preview-build
           mv test-results out/test-results-preview
+      - name: Same-origin upgrade and rollback test (live V1.4.1 -> new -> V1.4.1 -> new)
+        run: |
+          set -o pipefail
+          # 线上当前发布包：线上仓库提交 5eed8ae 里的 site.zip，先核对校验值
+          curl -sSfL -o live-site.zip https://github.com/shangchang-app/onstage/raw/5eed8ae/site.zip
+          echo "10d61ad446206bcc95fcf76827a61d54b5bae5f06f2b6fd35c0c7b6e0cb44f23  live-site.zip" | sha256sum -c - 2>&1 | tee ci-rollback.log
+          mkdir -p live-old && unzip -q live-site.zip -d live-old
+          npm run test:rollback -- live-old preview-build 2>&1 | tee -a ci-rollback.log
+          mv test-results out/test-results-rollback
       - name: Keep logs and screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -52,14 +62,21 @@ jobs:
             ci-*.log
             out/
           if-no-files-found: warn
+      - name: Keep release package (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-package
+          path: out/live/
       - name: Publish release package (Releases)
+        id: release
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           SHORT=$(git rev-parse --short HEAD)
           SHA=$(cut -d' ' -f1 out/live/*.sha256)
           printf '自动构建：提交 %s\n\n发布包（网址前缀 /onstage，用于线上仓库 shangchang-app/onstage）：\n- 文件：%s\n- SHA256：%s\n\nversion.json：\n```\n%s\n```\n' "$GITHUB_SHA" "$(ls out/live/*.zip | xargs -n1 basename)" "$SHA" "$(cat out/live/version.json)" > notes.md
-          gh release create "build-$SHORT" out/live/*.zip out/live/*.sha256 out/live/release.json --prerelease --title "构建 $SHORT（1.6.x）" --notes-file notes.md --target "$GITHUB_SHA"
+          gh release create "build-$SHORT" out/live/*.zip out/live/*.sha256 out/live/release.json --prerelease --title "构建 $SHORT（$(node -p \"require('./package.json').version\")）" --notes-file notes.md --target "$GITHUB_SHA"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
