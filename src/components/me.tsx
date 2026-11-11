@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from './session';
 import { Modal } from './modal';
-import { AnswerList, ErrorBox, Grid, Loading, STEPS, dateTime, guestSaveNote } from './ui';
+import { AnswerList, ErrorBox, Grid, Loading, dateTime, guestSaveNote, stepsFor } from './ui';
 
 export function Me() {
   const { session, api, toast, adopt } = useSession(); const router = useRouter();
@@ -30,7 +30,7 @@ export function Me() {
     <section className="sec" aria-labelledby="h-cont"><div className="sec-h"><div><h2 id="h-cont">继续体验</h2><p>从上次停下的地方继续。</p></div></div>
       {cont.length ? <div className="stack">{cont.map((d: any) => <div className="list-row" key={d.contentId}>
         <div style={{ minWidth: 0 }}><b>{d.content.data.title}</b>
-          <div className="small muted">{d.content.data.format === 'guided' ? <>停在第 {(d.progress?.step ?? 0) + 1} 步「{STEPS[d.progress?.step ?? 0]}」 · 已浏览 {d.progress?.visited?.length || 0}/6 步 · </> : null}{d.progress?.referenceViewed ? '已看参考思路 · ' : ''}已作答 {d.answered?.done ?? 0}/{d.answered?.total ?? 0} · 未完成实践 · 保存于 {dateTime(d.savedAt)}</div>
+          <div className="small muted">{d.content.data.format === 'guided' ? (() => { const st = stepsFor(d.content.data), i = Math.min(d.progress?.step ?? 0, st.length - 1); return <>停在第 {i + 1} 步「{st[i]}」 · 已浏览 {Math.min(d.progress?.visited?.length || 0, st.length)}/{st.length} 步 · </>; })() : null}{d.progress?.referenceViewed ? '已看参考思路 · ' : ''}已作答 {d.answered?.done ?? 0}/{d.answered?.total ?? 0} · 未完成实践 · 保存于 {dateTime(d.savedAt)}</div>
           {d.conflict && <span className="badge b-warn" style={{ marginTop: 4 }}>有两份作答，需要选择</span>}
           {d.outdated && <span className="badge b-gray" style={{ marginTop: 4 }}>体验已更新，你在做旧版本，可以继续做完</span>}
         </div>
@@ -92,6 +92,7 @@ export function Record({ id }: { id: string }) {
     <section className="sec-card"><h2>你的感受</h2><dl>
       <dt className="label">了解程度</dt><dd>{understand[ref.understand] || <span className="muted">（没有填写）</span>}</dd>
       <dt className="label" style={{ marginTop: 8 }}>感兴趣的部分</dt><dd>{ref.likes?.length ? ref.likes.join('、') : <span className="muted">（没有填写）</span>}</dd>
+      {ref.dislikeParts?.length > 0 && <><dt className="label" style={{ marginTop: 8 }}>不太喜欢的部分</dt><dd>{ref.dislikeParts.join('、')}</dd></>}
       <dt className="label" style={{ marginTop: 8 }}>不喜欢或觉得难的地方</dt><dd className="pre">{ref.dislikes || <span className="muted">（没有填写）</span>}</dd>
       <dt className="label" style={{ marginTop: 8 }}>接下来想了解</dt><dd>{ref.next?.length ? ref.next.map((x: string) => next[x]).join('、') : <span className="muted">（没有填写）</span>}</dd>
     </dl></section>

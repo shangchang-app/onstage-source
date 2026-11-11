@@ -7,7 +7,7 @@ fs.mkdirSync(SHOTS, { recursive: true });
 const results = [];
 const ok = (c, m) => { if (!c) throw new Error(m); };
 async function check(name, fn) { try { await fn(); results.push({ name, pass: true }); console.log('PASS', name); } catch (e) { results.push({ name, pass: false, error: String(e.message).slice(0, 400) }); console.log('FAIL', name, e.message); } }
-const W = '/experiences/ops-returns/work';
+const W = '/experiences/ops-returns-deep/work';
 (async () => {
   const b = await chromium.launch();
   await check('生产模式：未配置短信时登录被拒绝，不回退到模拟验证码', async () => {
@@ -19,7 +19,7 @@ const W = '/experiences/ops-returns/work';
     ok((await p.locator('main').innerText()).includes('登录服务暂不可用'), '登录页没有说明不可用');
     await p.screenshot({ path: path.join(SHOTS, 'prod-desktop_login.png'), fullPage: true }); await c.close();
   });
-  const pages = ['/', '/experiences', '/experiences/ops-returns', W, '/experiences/yc-quick/work', '/jobs', '/jobs/j1', '/events', '/companies/yc', '/cooperate', '/me'];
+  const pages = ['/', '/experiences', '/experiences/ops-returns', '/experiences/ops-returns/work', '/experiences/ops-returns-deep', W, '/experiences/yc-quick/work', '/jobs', '/jobs/j1', '/events', '/companies/yc', '/cooperate', '/me'];
   for (const [name, w, h, dsf] of [['desktop', 1280, 860, 1], ['m390', 390, 844, 2], ['m320', 320, 640, 2]]) {
     await check(`生产页面截图 ${name}：无脚本错误、无横向溢出`, async () => {
       const c = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: dsf }); const p = await c.newPage();

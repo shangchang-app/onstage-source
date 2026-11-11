@@ -5,6 +5,7 @@ import { type Identity } from './auth';
 import { answersSchema, checkGuide, contentSchema, demand, editSchema, Problem, progressSchema, reflectionSchema, requiredStatus, sameAnswers, hasContent, validateDestination, type ContentData, type Kind, type Progress } from './validation';
 export type Content = {id:string;kind:Kind;companyId:string|null;state:string;version:number;confirmedVersion:number|null;confirmation:string;demo:boolean;data:ContentData;updatedAt:string;status:string};
 const STEP_NAMES = ['认识岗位','看一次示范','接到模拟任务','跟着尝试','对照参考思路','总结与下一步'];
+const QUICK_STEP_NAMES = ['收到任务','看材料','行动与理由','复盘'];
 
 export class Service {
   constructor(public store: Store) {}
@@ -37,7 +38,7 @@ export class Service {
     }
     const {confirmation: _confirmation,...safe} = c;
     const { guide, ...rest } = c.data;
-    const summary = guide ? { steps: STEP_NAMES, practice: guide.practice.map(p => p.title), relatedJobs: guide.related.jobs, relatedExperiences: guide.related.experiences } : undefined;
+    const summary = guide ? { quick: !!guide.quick, deep: guide.quick?.deep || '', steps: guide.quick ? QUICK_STEP_NAMES : STEP_NAMES, practice: guide.practice.map(p => p.title), relatedJobs: guide.related.jobs, relatedExperiences: guide.related.experiences } : undefined;
     return {...safe,data:{...rest,authorizationNote:undefined,tasks:c.data.tasks.map(({reference: _reference,...task}) => task),guideSummary:summary}};
   }
   list(kind?: string, admin = false) {

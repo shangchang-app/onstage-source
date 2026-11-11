@@ -1,6 +1,7 @@
 import { Store, now } from '../src/server/db';
 import { checkGuide, contentSchema, type Kind } from '../src/server/validation';
 import { pathToFileURL } from 'node:url';
+import { quickData, quickPractice } from './case-ops-returns';
 /* 演示数据：与迁移分开。只用于开发 / 测试，生产环境拒绝运行。测试直接调用 seed(store)，不需要启动子进程。 */
 /* allowProduction：只给「试用版空数据库自动放入演示内容」（DEMO_CONTENT=seed-if-empty）使用；内容全部标为示例。 */
 export function seed(db: Store, opts: { allowProduction?: boolean } = {}) {
@@ -14,12 +15,13 @@ function add(id:string,kind:Kind,data:unknown,company:string|null=null,state='pu
   if(kind==='experience' && inserted.changes) db.run('INSERT OR IGNORE INTO experience_versions(experience_id,version,state,data,source_note,change_note,created_by,created_at,reviewed_by,reviewed_at,published_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)',id,1,state==='published'?'published':'draft',JSON.stringify(parsed),'平台根据公开的行业常识整理；店铺、数据、评论均为虚构的演示内容','初始版本','seed',now(),'seed',now(),state==='published'?now():null);
 }
 
-/* ---------- 完整示范：引导式岗位体验 ---------- */
-const guided = {
-  title:'商品退货率上升，先查什么？', direction:'跨境电商运营', minutes:45, format:'guided', sourceType:'platform',
+/* ---------- 深度版：6 步引导式岗位体验（V1.4，原旗舰体验） ---------- */
+const deep = {
+  title:'深度版：退货率上升，写一页给主管的说明', direction:'跨境电商运营', minutes:45, format:'guided', sourceType:'platform',
   level:'入门 · 零基础可做',
   about:'跨境电商运营负责让商品「卖得出去、赚得到钱、少出问题」。这次体验从一个常见问题出发：退货率突然上升，先查什么？',
   willDo:['读一份 6 周的运营数据','对照退货原因、评论和变更记录找原因','写一页给主管的说明：判断、行动、还缺什么'],
+  deliverable:'一页给主管的说明（判断、行动、还缺什么）',
   learn:['跨境电商运营每周在做什么','怎么用「拆开看、对时间、找证据」分析一次数据变化','怎么把判断写清楚，并给出可以验证的行动'],
   guide:{
     notInternship:'这是线上模拟的岗位体验：店铺、数据和评论都是虚构的。完成后你会得到一份「体验完成记录」，它只表示你完成了这次模拟体验，不是实习经历、能力认证，也不代表任何企业的录用意向。',
@@ -112,7 +114,42 @@ const guided = {
       {term:'访问量',def:'一段时间内打开商品页的次数。'},
       {term:'周报',def:'运营每周给团队的数据和工作总结，通常包括发生了什么、原因判断和下周计划。'}
     ],
-    related:{jobs:['j1'],experiences:['yc-quick','yc-std']}
+    related:{jobs:['j1'],experiences:['ops-returns','yc-std']}
+  }
+};
+
+/* ---------- V1.5 旗舰短体验：5–10 分钟，收到任务 → 看材料 → 行动与理由 → 复盘 ---------- */
+const g0 = deep.guide;
+const quick = {
+  title:'订单涨了，利润却少了一半：下周先做什么？', direction:'跨境电商运营', minutes:8, format:'guided', sourceType:'platform',
+  level:'入门 · 零基础可做',
+  about:'负责人在群里找你：订单涨了四成，利润却少了快一半。翻一翻后台的 4 份材料，告诉她下周先做什么、为什么、还缺什么信息。做完马上看到针对你选择的复盘。',
+  deliverable:'一份行动方案（行动 + 理由 + 缺的信息）和一页复盘',
+  willDo:['翻 4 份短材料：利润拆解、退货原因、差评和适配表、变更记录','组合下周的行动，写一两句理由','对照复盘：合理之处、遗漏、取舍和怎么验证'],
+  learn:['跨境电商运营遇到「量涨利跌」时先看什么','怎么把行动和证据对上','做决定时要权衡什么、怎么验证'],
+  guide:{
+    notInternship:g0.notInternship,
+    role:g0.role,
+    demo:g0.demo,
+    brief:{
+      role:quickData.brief.role,
+      situation:'CB-201 陶瓷刹车片上线 6 周。第 4 周起订单涨了约四成，但估算净利润少了近一半，退款也变多了。负责人请你说说下周先做什么、为什么、还缺什么信息。',
+      materials:[{id:'m1',title:'前 3 周 vs 后 3 周',kind:'table',columns:['时间','订单','退货率','广告花费','估算净利润'],rows:[['第 1–3 周','697','4.7%','$1,340','$7,028'],['第 4–6 周','991','11.1%','$3,790','$3,682']],note:'模拟教学数据。完整材料在体验里。'}],
+      deliverable:['下周先做什么（可以组合几项，也可以写自己的方案）','一两句理由','还缺什么信息'],
+      constraints:['这是模拟工作场景，店铺、数据和评论都是虚构的。','不计时，可以随时暂停。'],
+      help:['不知道从哪看起，可以展开「怎么下手」的提示。','术语可以点开看解释。']
+    },
+    practice:quickPractice,
+    quick:quickData,
+    reference:{
+      output:[{heading:'发生了什么',text:quickData.reference.summary},{heading:'原因判断',text:quickData.reference.cause},{heading:'下周先做',text:quickData.reference.actions},{heading:'怎么验证',text:quickData.reference.verify}],
+      why:[], alternatives:[], pitfalls:[], missing:quickData.reference.uncertain,
+      checklist:['我的行动直接针对主要原因。','我的理由里有具体的数据。','我说出了还缺什么信息、怎么验证。']
+    },
+    glossary:[...g0.glossary,
+      {term:'单件毛利',def:'每卖出一件，扣掉平台佣金、配送费和货品成本后剩下的钱。这里还没扣广告和退货。'},
+      {term:'估算净利润',def:'订单毛利合计 − 退货损失 − 广告花费。这是简化的估算，真实账目还有仓储、汇率等费用。'}],
+    related:{jobs:['j1'],experiences:['ops-returns-deep','yc-std']}
   }
 };
 
@@ -123,12 +160,13 @@ db.transaction(()=>{
     ['my','墨言 AI','AI 公司','20–50 人','面向内容创作者和企业市场团队的 AI 写作工具。',['AI 产品运营','增长','商业化']],
     ['lm','Lumo','出海企业','150–300 人','智能小家电品牌，销往日本和欧美。',['海外市场','品牌营销']]
   ] as const) add(id,'company',{title,industry,size,about,directions,authorized:true,authorizationNote:'演示数据：虚构企业，不代表真实企业关系',officialDomain:'example.com',cooperation:'这是用于演示的虚构企业，上场与它没有真实合作关系。页面上的岗位、体验背景和数据都是示例。'});
-  add('ops-returns','experience',guided,null);
-  const simple=(title:string,direction:string,minutes:number,about:string,scene:string,tasks:unknown[],willDo:string[])=>({title,direction,minutes,about,scene,tasks,format:'simple',sourceType:'platform',level:'简版练习 · 零基础可做',willDo,learn:['一个具体任务的做法和参考思路']});
-  add('yc-quick','experience',simple('这条差评，你先查什么？','跨境电商运营',10,'跨境电商运营负责上架、定价、广告和售后数据，每天都要看订单、评论和退货。','一款刹车片上线两周，退货率从 6% 升到了 11%。今天收到一条 1 星差评：\n“Doesn’t fit my 2019 Camry even though the listing said it would.”',[{title:'你第一步先做什么？',prompt:'选择一个行动，并用一两句话说明理由。',options:['降价 10%，挽回转化','检查商品页的适配车型信息','加大广告投放','联系物流商更换渠道'],reference:'先查适配车型信息。买家指出“不匹配”，应先核对商品页车型信息。自查：是否从差评定位问题？是否意识到加广告会放大不匹配问题？'}],['读一条差评，决定第一步查什么']),'yc');
-  add('yc-std','experience',simple('新品上架的第一个月','跨境电商运营',35,'对一个商品的赚不赚钱、卖不卖得动负责。','主管把陶瓷刹车片新品交给你，希望你先算清楚一单能赚多少，再看看两周的数据。',[{title:'算一单账',prompt:'售价 $39.99；平台佣金 12%；FBA 配送费 $6.50；货成本（含头程）$15.69。\n平台和物流共拿走多少？扣货成本还剩多少？写出计算过程。',reference:'佣金约 $4.80，加 FBA 共 $11.30。扣掉货成本后约 $13.00，尚未扣广告及退货。自查：佣金基数、物流、货成本是否齐全？'},{title:'读两周数据',prompt:'第 1 周 → 第 2 周：\n点击率 0.85% → 1.05%\n广告转化率 9.3% → 8.1%\n退货率 6.0% → 11.0%\n差评：“Fitment info is confusing, had to return.”\n你会先解决什么？',reference:'点击涨、转化跌、退货升，评论指向适配信息。先补全适配车型，再考虑加投广告。自查：是否同时看三个指标，并与评论联系？'}],['算一单商品的利润','读两周数据，决定先解决什么']),'yc');
-  add('xt-std','experience',simple('先帮客户找对问题','AI 解决方案',35,'弄清业务问题，判断哪里适合 AI，把投入产出讲清楚。','跨境家居卖家想用 AI 节省客服人力。老板问：哪些事能交给 AI，能省多少钱？',[{title:'哪些问题适合交给 AI',prompt:'① 包裹到哪了；② 退货怎么操作；③ 收到的桌子有裂缝；④ 能否开增值税发票。逐条判断并说明理由。',reference:'①②④规则明确，可交给 AI；③涉及质量判断和赔付，转人工。自查：是否逐条判断，是否考虑权限及风险？'},{title:'给老板算一笔账',prompt:'AI 客服工具 ¥1,500/月，客服月成本 ¥8,000，AI 能接手半个人的工作量。每月约省多少？还需考虑哪些成本？',reference:'4000−1500=2500 元/月，还需算实施、培训、复核与知识库维护；工作量节约不等于直接减少现金支出。'}],['判断哪些客服问题适合交给 AI','给老板算一笔投入产出账']),'xt');
-  add('my-quick','experience',simple('先服务哪类用户？','AI 产品运营',12,'关注谁在用、为什么用、怎么让他们留下来。','注册占比 / 付费占比：\n自媒体作者 40% / 25%\n学生 35% / 10%\n企业市场人员 15% / 55%\n其他 10% / 10%',[{title:'下个月优先服务哪类用户？',prompt:'资源有限，请选择并说明理由。',options:['自媒体作者','学生','企业市场人员','四类平均分配'],reference:'企业市场人员注册占比低，却贡献最多付费，可优先验证其需求。自查：有没有同时考虑规模、付费和样本局限？'}],['从注册和付费数据里选出优先服务的用户']),'my');
+  add('ops-returns','experience',quick,null);
+  add('ops-returns-deep','experience',deep,null);
+  const simple=(title:string,direction:string,minutes:number,about:string,scene:string,tasks:unknown[],willDo:string[],deliverable:string)=>({title,direction,minutes,about,scene,tasks,format:'simple',sourceType:'platform',level:'简版练习 · 零基础可做',willDo,deliverable,learn:['一个具体任务的做法和参考思路']});
+  add('yc-quick','experience',simple('这条差评，你先查什么？','跨境电商运营',10,'跨境电商运营负责上架、定价、广告和售后数据，每天都要看订单、评论和退货。','一款刹车片上线两周，退货率从 6% 升到了 11%。今天收到一条 1 星差评：\n“Doesn’t fit my 2019 Camry even though the listing said it would.”',[{title:'你第一步先做什么？',prompt:'选择一个行动，并用一两句话说明理由。',options:['降价 10%，挽回转化','检查商品页的适配车型信息','加大广告投放','联系物流商更换渠道'],reference:'先查适配车型信息。买家指出“不匹配”，应先核对商品页车型信息。自查：是否从差评定位问题？是否意识到加广告会放大不匹配问题？'}],['读一条差评，决定第一步查什么'],'一个选择 + 一两句理由'),'yc');
+  add('yc-std','experience',simple('新品上架的第一个月','跨境电商运营',35,'对一个商品的赚不赚钱、卖不卖得动负责。','主管把陶瓷刹车片新品交给你，希望你先算清楚一单能赚多少，再看看两周的数据。',[{title:'算一单账',prompt:'售价 $39.99；平台佣金 12%；FBA 配送费 $6.50；货成本（含头程）$15.69。\n平台和物流共拿走多少？扣货成本还剩多少？写出计算过程。',reference:'佣金约 $4.80，加 FBA 共 $11.30。扣掉货成本后约 $13.00，尚未扣广告及退货。自查：佣金基数、物流、货成本是否齐全？'},{title:'读两周数据',prompt:'第 1 周 → 第 2 周：\n点击率 0.85% → 1.05%\n广告转化率 9.3% → 8.1%\n退货率 6.0% → 11.0%\n差评：“Fitment info is confusing, had to return.”\n你会先解决什么？',reference:'点击涨、转化跌、退货升，评论指向适配信息。先补全适配车型，再考虑加投广告。自查：是否同时看三个指标，并与评论联系？'}],['算一单商品的利润','读两周数据，决定先解决什么'],'一笔利润账 + 一个优先级判断'),'yc');
+  add('xt-std','experience',simple('先帮客户找对问题','AI 解决方案',35,'弄清业务问题，判断哪里适合 AI，把投入产出讲清楚。','跨境家居卖家想用 AI 节省客服人力。老板问：哪些事能交给 AI，能省多少钱？',[{title:'哪些问题适合交给 AI',prompt:'① 包裹到哪了；② 退货怎么操作；③ 收到的桌子有裂缝；④ 能否开增值税发票。逐条判断并说明理由。',reference:'①②④规则明确，可交给 AI；③涉及质量判断和赔付，转人工。自查：是否逐条判断，是否考虑权限及风险？'},{title:'给老板算一笔账',prompt:'AI 客服工具 ¥1,500/月，客服月成本 ¥8,000，AI 能接手半个人的工作量。每月约省多少？还需考虑哪些成本？',reference:'4000−1500=2500 元/月，还需算实施、培训、复核与知识库维护；工作量节约不等于直接减少现金支出。'}],['判断哪些客服问题适合交给 AI','给老板算一笔投入产出账'],'逐条判断 + 一笔投入产出账'),'xt');
+  add('my-quick','experience',simple('先服务哪类用户？','AI 产品运营',12,'关注谁在用、为什么用、怎么让他们留下来。','注册占比 / 付费占比：\n自媒体作者 40% / 25%\n学生 35% / 10%\n企业市场人员 15% / 55%\n其他 10% / 10%',[{title:'下个月优先服务哪类用户？',prompt:'资源有限，请选择并说明理由。',options:['自媒体作者','学生','企业市场人员','四类平均分配'],reference:'企业市场人员注册占比低，却贡献最多付费，可优先验证其需求。自查：有没有同时考虑规模、付费和样本局限？'}],['从注册和付费数据里选出优先服务的用户'],'一个优先级选择 + 理由'),'my');
   const jobs=[
     ['j1','跨境电商运营实习生','yc','跨境电商运营','福州','¥150–200/天','intern',20],
     ['j2','全球市场营销管培生','yc','全球市场营销','福州','薪资面议','campus',35],
@@ -137,7 +175,7 @@ db.transaction(()=>{
     ['j5','海外市场专员','lm','海外市场','上海','¥12k–15k/月','campus',28],
     ['j6','客户成功专员','xt','客户成功','深圳','薪资面议','campus',30]
   ] as const;
-  for(const [id,title,co,direction,city,salary,jobType,days] of jobs) add(id,'job',{title,direction,city,salary,jobType,deadline:day(days),source:'企业招聘负责人提供（虚构示例）',applyUrl:'https://example.com/careers/'+id,duties:jobType==='intern'?'整理业务数据，协助团队识别问题。\n参与每周复盘和方案执行。':'参与市场与客户项目，协助团队制定增长计划。',requirements:'本科及以上，专业不限。\n逻辑清晰，愿意学习，能使用表格整理信息。',days:jobType==='intern'?'每周 3–4 天':'',duration:jobType==='intern'?'至少 3 个月':'',graduation:jobType==='campus'?'2027 届':'',related:co==='yc'?['ops-returns','yc-quick','yc-std']:co==='xt'?['xt-std']:['my-quick']},co,id==='j6'?'offline':'published');
+  for(const [id,title,co,direction,city,salary,jobType,days] of jobs) add(id,'job',{title,direction,city,salary,jobType,deadline:day(days),source:'企业招聘负责人提供（虚构示例）',applyUrl:'https://example.com/careers/'+id,duties:jobType==='intern'?'整理业务数据，协助团队识别问题。\n参与每周复盘和方案执行。':'参与市场与客户项目，协助团队制定增长计划。',requirements:'本科及以上，专业不限。\n逻辑清晰，愿意学习，能使用表格整理信息。',days:jobType==='intern'?'每周 3–4 天':'',duration:jobType==='intern'?'至少 3 个月':'',graduation:jobType==='campus'?'2027 届':'',related:co==='yc'?['ops-returns','ops-returns-deep','yc-std']:co==='xt'?['xt-std']:['my-quick']},co,id==='j6'?'offline':'published');
   for(const [id,title,co,eventType,city,days] of [
     ['e1','AI Agent 创新黑客松','xt','hack','深圳',12],['e2','AI 应用周末黑客松','my','hack','线上',3],['e3','跨境电商运营挑战赛','yc','competition','线上',25],['e4','出海品牌营销策划大赛','lm','competition','上海',40],['e5','AI for 跨境 黑客松','xt','hack','杭州',18],['e6','新消费品牌出海策划赛','lm','competition','线上',-5]
   ] as const) add(id,'event',{title,eventType,city,deadline:day(days),organizer:co==='yc'?'远驰汽配（虚构）':'上场示例主办方',eligibility:'在校本科及研究生，可跨专业组队。',prize:'奖励以主办方正式公告为准（本条为示例）',source:'主办方官网（示例）',applyUrl:'https://example.com/events/'+id,about:'围绕真实业务场景，和队友一起把想法做成可展示的方案。'},co);

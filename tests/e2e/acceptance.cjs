@@ -5,7 +5,7 @@ const { chromium } = require('playwright');
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
-const BASE = process.env.E2E_BASE, OUT = process.env.RESULTS_DIR || path.join('test-results', 'acceptance'), SHOTS = path.join(OUT, 'shots'), W = '/experiences/ops-returns/work';
+const BASE = process.env.E2E_BASE, OUT = process.env.RESULTS_DIR || path.join('test-results', 'acceptance'), SHOTS = path.join(OUT, 'shots'), W = '/experiences/ops-returns-deep/work';
 if (!BASE || !process.env.DATABASE_PATH) { console.error('请用 npm run test:e2e 运行（需要 E2E_BASE 和 DATABASE_PATH）'); process.exit(2); }
 fs.mkdirSync(SHOTS, { recursive: true });
 const grantAdmin = phone => execFileSync(process.execPath, [process.env.TSX_CLI || require.resolve('tsx/cli'), path.join('scripts', 'admin.ts'), phone], { env: { ...process.env, NODE_NO_WARNINGS: '1' }, stdio: 'pipe' });
@@ -60,9 +60,9 @@ async function fillAll(p) {
 
   await test('零经验学生（游客）走完 6 步并在登录后保存完成记录', async () => {
     const { c, p } = await ctx();
-    await p.goto(BASE + '/experiences/ops-returns', { waitUntil: 'networkidle' });
+    await p.goto(BASE + '/experiences/ops-returns-deep', { waitUntil: 'networkidle' });
     await shot(p, 'flow-00-detail');
-    await p.click('a:has-text("开始体验")'); await p.waitForURL('**/work'); await p.waitForSelector('.stepper');
+    await p.click('a:has-text("开始体验")'); await p.waitForURL('**/work'); await p.waitForSelector('.stepper'); await p.waitForLoadState('networkidle');
     await shot(p, 'flow-01-role');
     for (const [n, name] of [[2, 'demo'], [3, 'brief']]) { await p.click('.nav-steps .btn-primary'); await p.waitForTimeout(200); await shot(p, `flow-0${n}-${name}`); }
     await p.click('.nav-steps .btn-primary');
@@ -91,7 +91,7 @@ async function fillAll(p) {
     const txt = await p.locator('main').innerText();
     ok(txt.includes('不代表实习经历或职业资格') && txt.includes('多了不少') && txt.includes('参考思路'), '完成记录内容不完整');
     await shot(p, 'record-desktop');
-    await p.goto(BASE + '/me', { waitUntil: 'networkidle' }); ok((await p.locator('#h-rec').locator('..').locator('..').locator('..').innerText()).includes('商品退货率上升'), '「我的」没有完成记录');
+    await p.goto(BASE + '/me', { waitUntil: 'networkidle' }); ok((await p.locator('#h-rec').locator('..').locator('..').locator('..').innerText()).includes('深度版：退货率上升'), '「我的」没有完成记录');
     await shot(p, 'me-desktop');
     ok(p.errors.length === 0, '页面脚本错误：' + p.errors.join(' | '));
     await c.close();
@@ -104,8 +104,8 @@ async function fillAll(p) {
     ok((await p.locator('.notice:has-text("还差这些没写")').innerText()).includes('前 3 周整体退货率'), '没有列出缺少的作答');
     await shot(p, 'browse-only-wrap');
     await sleep(900);
-    const d = await api(p, 'drafts/ops-returns');
-    const r = await api(p, 'experiences/ops-returns/submit', { version: d.body?.version || 1, contentVersion: 1, reflection: {} });
+    const d = await api(p, 'drafts/ops-returns-deep');
+    const r = await api(p, 'experiences/ops-returns-deep/submit', { version: d.body?.version || 1, contentVersion: 1, reflection: {} });
     ok(r.status === 422 && r.body.code === 'INCOMPLETE', '服务端没有拒绝只浏览的提交：' + JSON.stringify(r));
     const m = await api(p, 'mine'); ok(m.body.records.length === 0, '只浏览却产生了完成记录');
     ok(d.body?.progress?.visited?.length === 6 && d.body.progress.referenceViewed, '浏览进度没有保存');
@@ -118,7 +118,7 @@ async function fillAll(p) {
     await p.reload({ waitUntil: 'networkidle' }); await p.waitForSelector('.stepper');
     ok(await p.locator('.stepper button[aria-current="step"] .t').textContent() === '跟着尝试', '刷新后没有回到上次的步骤');
     ok(await p.inputValue('#f-p2-when') === '第 4 周', '刷新后作答丢失');
-    await p.goto(BASE + '/experiences/ops-returns', { waitUntil: 'networkidle' });
+    await p.goto(BASE + '/experiences/ops-returns-deep', { waitUntil: 'networkidle' });
     ok(await p.locator('a:has-text("继续体验")').isVisible(), '详情页没有「继续体验」');
     await c.close();
   });
@@ -165,7 +165,7 @@ async function fillAll(p) {
     await p.waitForFunction(() => /网络中断/.test(document.querySelector('.save-state')?.textContent || ''), null, { timeout: 10000 });
     await shot(p, 'network-retry', false);
     const owner = (await api(p, 'session')).body.identity.owner;
-    const bk = await p.evaluate(k => JSON.parse(localStorage.getItem(k)), `onstage:backup:${owner}:ops-returns`);
+    const bk = await p.evaluate(k => JSON.parse(localStorage.getItem(k)), `onstage:backup:${owner}:ops-returns-deep`);
     ok(bk && bk.synced === false && bk.answers['p1.before'].includes('断网'), '没有在本机暂存');
     await p.unroute('**/api/drafts/**');
     await p.click('button:has-text("立即重试")'); await waitSaved(p);
@@ -178,7 +178,7 @@ async function fillAll(p) {
     await p2.waitForSelector('text=这台设备上有一份没保存到服务器的作答'); await shot(p2, 'backup-restore-prompt', false);
     await p2.click('button:has-text("用本机这份继续")'); await waitSaved(p2); await step(p2, 4);
     ok(await p2.inputValue('#f-p1-before') === '关页前没保存上的', '没有恢复本机内容');
-    const d = await api(p2, 'drafts/ops-returns'); ok(d.body.answers['p1.before'] === '关页前没保存上的', '恢复后没有保存到服务器');
+    const d = await api(p2, 'drafts/ops-returns-deep'); ok(d.body.answers['p1.before'] === '关页前没保存上的', '恢复后没有保存到服务器');
     await c.close();
   });
 
@@ -203,7 +203,7 @@ async function fillAll(p) {
     ok((await p.locator('.work-head .save-state').textContent()).includes('保存已暂停'), '保存没有暂停');
     ok(await p.locator('#f-p5-first').getAttribute('readonly') !== null, '身份变化后仍可编辑');
     // 直接用旧页面的会话戳写入：服务端拒绝
-    const r = await p.evaluate(async () => (await fetch('/api/drafts/ops-returns', { method: 'POST', headers: { 'content-type': 'application/json', 'x-session': 'stale-stamp' }, body: JSON.stringify({ version: 0, contentVersion: 1, answers: {} }) })).status);
+    const r = await p.evaluate(async () => (await fetch('/api/drafts/ops-returns-deep', { method: 'POST', headers: { 'content-type': 'application/json', 'x-session': 'stale-stamp' }, body: JSON.stringify({ version: 0, contentVersion: 1, answers: {} }) })).status);
     ok(r === 409, '旧会话戳的写入没有被拒绝：' + r);
     await c.close();
   });
@@ -224,7 +224,7 @@ async function fillAll(p) {
     grantAdmin(aph);
     const ad = await api(adminPage, 'admin'); ok(ad.status === 200, '管理员不能访问后台');
     ok(!JSON.stringify(ad.body).includes('隔离测试'), '后台数据包含学生作答');
-    const vs = await api(adminPage, 'admin/experiences/ops-returns/versions'); ok(!JSON.stringify(vs.body).includes('隔离测试'), '版本数据包含学生作答');
+    const vs = await api(adminPage, 'admin/experiences/ops-returns-deep/versions'); ok(!JSON.stringify(vs.body).includes('隔离测试'), '版本数据包含学生作答');
     const ar = await api(adminPage, 'records/' + recordA); ok(ar.status === 404, '管理员能读到学生的完成记录');
     await b.c.close();
   });
@@ -234,10 +234,10 @@ async function fillAll(p) {
     const cU = await ctx(); await login(cU.p, phone(9), W); await cU.p.goto(BASE + W, { waitUntil: 'networkidle' }); await fillAll(cU.p); await waitSaved(cU.p);
     // 管理员在后台建第 2 版、改标题、审核、发布（走页面）
     await adminPage.goto(BASE + '/admin', { waitUntil: 'networkidle' }); await shot(adminPage, 'admin-experiences', false);
-    await adminPage.locator('.panel:has-text("ops-returns") button:has-text("管理版本")').click();
+    await adminPage.locator('.panel:has-text("ops-returns-deep") button:has-text("管理版本")').click();
     await adminPage.click('button:has-text("新建版本")'); await adminPage.waitForSelector('button:has-text("编辑内容")');
     await adminPage.click('button:has-text("编辑内容")'); await adminPage.waitForSelector('#ve-h');
-    await adminPage.fill('#af-title', '商品退货率上升，先查什么？（第 2 版）');
+    await adminPage.fill('#af-title', '深度版：退货率上升（第 2 版）');
     await adminPage.fill('label:has-text("本版改动说明") input', '标题标注版本，用于测试');
     ok(await adminPage.locator('#ve-h ~ .badge, .badge:has-text("有未保存的修改")').count() > 0, '没有显示未保存提示');
     await adminPage.click('button:has-text("保存草稿")'); await adminPage.waitForSelector('#ve-h', { state: 'detached' });
@@ -247,8 +247,8 @@ async function fillAll(p) {
     await adminPage.click('.list-row button:has-text("发布")'); await adminPage.waitForSelector('text=已被替代（只读）');
     await shot(adminPage, 'admin-version-published', true);
     // 已发布 / 已替代的版本只读：直接改第 1 版被拒绝
-    const v1 = (await api(adminPage, 'admin/experiences/ops-returns/versions')).body.versions.find(v => v.version === 1);
-    const lock = await api(adminPage, 'admin/experiences/ops-returns/versions/1', { data: v1.data, sourceNote: 'x', changeNote: 'x', rev: v1.rev, companyId: null });
+    const v1 = (await api(adminPage, 'admin/experiences/ops-returns-deep/versions')).body.versions.find(v => v.version === 1);
+    const lock = await api(adminPage, 'admin/experiences/ops-returns-deep/versions/1', { data: v1.data, sourceNote: 'x', changeNote: 'x', rev: v1.rev, companyId: null });
     ok(lock.status === 409, '已替代版本仍能修改：' + lock.status);
     // 学生 C：看到旧版本提示，仍能完成第 1 版
     await cU.p.reload({ waitUntil: 'networkidle' }); await cU.p.waitForSelector('text=已经更新到第 2 版');
@@ -269,13 +269,13 @@ async function fillAll(p) {
   await test('体验下线：不能继续保存或完成，草稿和记录保留；重新上线后恢复', async () => {
     const s = await ctx(); await s.p.goto(BASE + W, { waitUntil: 'networkidle' }); await step(s.p, 4); await s.p.fill('#f-p2-when', '下线前写的'); await waitSaved(s.p);
     await adminPage.goto(BASE + '/admin', { waitUntil: 'networkidle' });
-    await adminPage.locator('.panel:has-text("ops-returns") button:has-text("下线")').click(); await adminPage.waitForSelector('.panel:has-text("ops-returns") button:has-text("上线")');
+    await adminPage.locator('.panel:has-text("ops-returns-deep") button:has-text("下线")').click(); await adminPage.waitForSelector('.panel:has-text("ops-returns-deep") button:has-text("上线")');
     await s.p.fill('#f-p2-when', '下线后写的');
     await s.p.waitForFunction(() => /下线/.test(document.querySelector('.save-state')?.textContent || ''), null, { timeout: 10000 });
     await shot(s.p, 'offline-while-working', false);
-    await s.p.goto(BASE + '/experiences/ops-returns', { waitUntil: 'networkidle' }); ok((await s.p.locator('h1').innerText()).includes('已下线'), '详情页没有显示下线');
+    await s.p.goto(BASE + '/experiences/ops-returns-deep', { waitUntil: 'networkidle' }); ok((await s.p.locator('h1').innerText()).includes('已下线'), '详情页没有显示下线');
     await userA.p.goto(BASE + '/records/' + recordA, { waitUntil: 'networkidle' }); ok((await userA.p.locator('main').innerText()).includes('目前已下线'), '下线后记录不可见');
-    await adminPage.locator('.panel:has-text("ops-returns") button:has-text("上线")').click(); await adminPage.waitForSelector('.panel:has-text("ops-returns") button:has-text("下线")');
+    await adminPage.locator('.panel:has-text("ops-returns-deep") button:has-text("上线")').click(); await adminPage.waitForSelector('.panel:has-text("ops-returns-deep") button:has-text("下线")');
     await s.p.goto(BASE + W, { waitUntil: 'networkidle' }); await step(s.p, 4); ok(await s.p.inputValue('#f-p2-when') === '下线前写的', '重新上线后草稿丢失');
     await s.c.close();
   });
@@ -416,6 +416,19 @@ async function fillAll(p) {
     await api(A, 'admin/content/j1/transition', { action: 'confirm', version: j1.version, note: '测试：恢复确认' }); await api(A, 'admin/content/j1/transition', { action: 'publish', version: j1.version });
   });
 
+  await test('V1.5 短体验（正式版）：游客走完 4 步看到复盘；登录后保存完成记录', async () => {
+    const { c, p } = await ctx(); await p.goto(BASE + '/experiences/ops-returns/work', { waitUntil: 'networkidle' });
+    await p.click('button:has-text("开始：去后台看看")'); await p.click('.matc:has-text("退货原因") .matc-h button');
+    await p.click('button:has-text("写下周的行动")'); await p.locator('.choice:has-text("按原厂目录核对")').click();
+    await p.fill('#f-plan-reason', '车型不匹配涨得最多'); await waitSaved(p);
+    await p.click('button:has-text("提交方案，看复盘")'); await p.waitForSelector('#rv-ref');
+    ok((await p.locator('main').innerText()).includes('没有打开：利润拆解'), '复盘没有对应操作');
+    await login(p, phone(31), '/experiences/ops-returns/work'); await p.goto(BASE + '/experiences/ops-returns/work', { waitUntil: 'networkidle' });
+    await p.waitForSelector('.work-head'); ok((await p.locator('main').innerText()).includes('已写好'), '登录后作答没有并入账号'); await step(p, 4);
+    await p.waitForSelector('#rv-ref'); await p.click('button:has-text("完成并保存记录")'); await p.waitForURL('**/records/**'); await p.waitForSelector('h2:has-text("你的作答")');
+    ok((await p.locator('main').innerText()).includes('车型不匹配涨得最多'), '完成记录里没有作答');
+    ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
+  });
   await test('简版练习：可以先看参考思路，只看不做不生成完成记录', async () => {
     const { c, p } = await ctx(); await login(p, phone(10), '/experiences/yc-quick/work'); await p.goto(BASE + '/experiences/yc-quick/work', { waitUntil: 'networkidle' });
     ok((await p.locator('.track').innerText()).includes('未看参考思路'), '没有显示参考状态');
@@ -482,7 +495,7 @@ async function fillAll(p) {
   });
 
   await test('390px / 320px 无横向滚动，主要页面截图', async () => {
-    const pages = ['/', '/experiences', '/experiences/ops-returns', W, '/experiences/yc-quick/work', '/jobs', '/jobs/j1', '/events', '/companies/yc', '/me', '/login', '/cooperate'];
+    const pages = ['/', '/experiences', '/experiences/ops-returns-deep', W, '/experiences/yc-quick/work', '/jobs', '/jobs/j1', '/events', '/companies/yc', '/me', '/login', '/cooperate'];
     for (const [name, w, h] of [['m390', 390, 844], ['m320', 320, 640]]) {
       const { c, p } = await ctx({ viewport: { width: w, height: h }, deviceScaleFactor: 2 });
       for (const path of pages) {

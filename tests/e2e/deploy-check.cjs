@@ -4,7 +4,7 @@ const { chromium } = require('playwright');
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs'), path = require('node:path');
 const BASE = process.env.E2E_BASE, OUT = process.env.RESULTS_DIR, PHASE = Number(process.env.PHASE), SHOTS = path.join(OUT, 'shots');
-const STATE = path.join(OUT, 'state.json'), W = '/experiences/ops-returns/work';
+const STATE = path.join(OUT, 'state.json'), W = '/experiences/ops-returns-deep/work';
 fs.mkdirSync(SHOTS, { recursive: true });
 const state = fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, 'utf8')) : {};
 const results = []; const ok = (c, m) => { if (!c) throw new Error(m); };
@@ -60,7 +60,7 @@ async function write(p, text) { await openPractice(p); await p.fill('#f-p1-befor
       await p.waitForFunction(() => /网络中断/.test(document.querySelector('.work-head .save-state')?.textContent || ''), null, { timeout: 10000 });
       await p.screenshot({ path: path.join(SHOTS, 'deploy-save-failed.png'), fullPage: false });
       await p.unroute('**/api/drafts/**'); await p.click('button:has-text("立即重试")'); await waitSaved(p);
-      ok((await api(p, 'drafts/ops-returns')).body.answers['p2.when'] === '断网时写的', '恢复后没有保存到服务器');
+      ok((await api(p, 'drafts/ops-returns-deep')).body.answers['p2.when'] === '断网时写的', '恢复后没有保存到服务器');
       await c.storageState({ path: files.A }); await c.close();
     });
     await check('后台权限：访客打不开后台；一次性链接只在服务器生成、只能用一次；管理员入口只对管理员显示', async () => {

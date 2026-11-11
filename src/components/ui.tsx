@@ -10,6 +10,11 @@ export const daysLeft = (v: string) => Math.ceil((Date.parse(v) - Date.now()) / 
 /* 没有开放登录时（试用版未配置短信），访客的保存范围说明。 */
 export const guestSaveNote = (days = 30) => `你的作答会自动保存在这个浏览器里：用同一个浏览器 ${days} 天内回来可以继续。换手机或电脑、换浏览器、清除浏览器数据或使用无痕模式，都看不到之前的作答。`;
 export const STEPS = ['认识岗位', '看一次示范', '接到模拟任务', '跟着尝试', '对照参考思路', '总结与下一步'];
+export const QUICK_STEPS = ['收到任务', '看材料', '行动与理由', '复盘'];
+/* 体验是哪一种：短体验（V1.5，4 步）、深度版（6 步引导）、简版练习。data 可以是完整内容，也可以是列表里的摘要。 */
+export const expKind = (d: any): 'quick' | 'deep' | 'simple' => d.format !== 'guided' ? 'simple' : (d.guide?.quick || d.guideSummary?.quick) ? 'quick' : 'deep';
+export const stepsFor = (d: any) => expKind(d) === 'quick' ? QUICK_STEPS : STEPS;
+export const SOURCE_LABEL: Record<string, string> = { sim: '模拟教学数据', adapted: '根据公开资料改编', public: '公开资料', cocreate: '企业授权共创' };
 
 export function useCatalog() {
   const [items, setItems] = useState<Item[]>([]), [error, setError] = useState(''), [loading, setLoading] = useState(true);
@@ -30,23 +35,22 @@ export function KindBadge({ item }: { item: Item }) {
   const d = item.data;
   if (item.kind === 'job') return <span className="badge b-blue">{d.jobType === 'intern' ? '实习' : '校招'}</span>;
   if (item.kind === 'event') return <span className="badge b-orange">{d.eventType === 'hack' ? '黑客松' : '企业商赛'}</span>;
-  if (item.kind === 'experience') return <>
-    <span className={'badge ' + (d.format === 'guided' ? 'b-orange' : 'b-gray')}>{d.format === 'guided' ? '完整引导' : '简版练习'}</span>
-    <span className="badge b-blue">{d.sourceType === 'cocreate' ? (item.demo ? '企业共创（演示）' : '企业共创') : '平台制作'}</span>
-  </>;
+  if (item.kind === 'experience') { const k = expKind(d); return <>
+    <span className={'badge ' + (k === 'quick' ? 'b-orange' : k === 'deep' ? 'b-blue' : 'b-gray')}>{k === 'quick' ? '短体验' : k === 'deep' ? '深度版' : '简版练习'}</span>
+    <span className="badge b-gray">{d.sourceType === 'cocreate' ? (item.demo ? '企业共创（演示）' : '企业共创') : '平台制作'}</span>
+  </>; }
   return <span className="badge b-gray">企业</span>;
 }
 export const Demo = ({ on }: { on: boolean }) => on ? <span className="badge b-demo">示例</span> : null;
 
 export function Card({ item, company }: { item: Item; company?: Item }) {
   const d = item.data;
-  if (item.kind === 'experience') return <Link className="card" href={'/experiences/' + item.id}>
+  if (item.kind === 'experience') { const k = expKind(d); return <Link className={'card' + (k === 'quick' ? ' card-feature' : '')} href={'/experiences/' + item.id}>
     <div className="tags"><KindBadge item={item} /><Demo on={item.demo} /></div>
     <div><div className="eyebrow">{d.direction}</div><h3>{d.title}</h3></div>
-    <div className="card-meta">约 {d.minutes} 分钟 · {d.level}{d.format === 'guided' ? ' · 可暂停' : ''}</div>
-    {d.willDo?.length > 0 && <ul aria-label="将体验的工作">{d.willDo.slice(0, 3).map((w: string) => <li key={w}>{w}</li>)}</ul>}
-    <div className="card-foot"><span className="muted">{d.format === 'guided' ? '6 步：认识岗位 → 示范 → 任务 → 尝试 → 参考 → 总结' : '只有任务和参考思路'}</span><span className="go">去看看 →</span></div>
-  </Link>;
+    <dl className="facts"><div><dt>时长</dt><dd>约 {d.minutes} 分钟</dd></div><div><dt>难度</dt><dd>{String(d.level || '').split(' · ').pop()}</dd></div><div><dt>成果</dt><dd>{d.deliverable || '文字作答 + 参考思路'}</dd></div></dl>
+    <div className="card-foot"><span className="muted">{k === 'quick' ? '收到任务 → 看材料 → 行动与理由 → 复盘' : k === 'deep' ? '6 步：认识岗位 → 示范 → 任务 → 尝试 → 参考 → 总结' : '只有任务和参考思路'}</span><span className="go">{k === 'simple' ? '看看 →' : '开始 →'}</span></div>
+  </Link>; }
   if (item.kind === 'company') return <Link className="card" href={'/companies/' + item.id}>
     <div className="tags"><KindBadge item={item} /><Demo on={item.demo} /></div>
     <h3>{d.title}</h3><div className="card-meta">{d.industry} · {d.size}</div>

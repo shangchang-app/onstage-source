@@ -4,11 +4,12 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, useSession } from './session';
 import { Modal } from './modal';
-import { AnswerList, ErrorBox, Grid, Loading, Material, STEPS, Terms, dateTime, guestSaveNote, useCatalog } from './ui';
+import { AnswerList, ErrorBox, Grid, Loading, Material, QUICK_STEPS, STEPS, Terms, dateTime, guestSaveNote, useCatalog } from './ui';
+import { QuickWork } from './quick';
 
 type Answers = Record<string, string | string[]>;
 type Progress = { step: number; visited: number[]; referenceViewed: boolean; hintsOpened: string[] };
-type Reflection = { understand: '' | 'yes' | 'some' | 'no'; likes: string[]; dislikes: string; next: string[] };
+type Reflection = { understand: '' | 'yes' | 'some' | 'no'; likes: string[]; dislikes: string; next: string[]; dislikeParts?: string[] };
 type Save = { kind: 'idle' | 'saving' | 'saved' | 'retry' | 'local' | 'conflict' | 'gone' | 'offline' | 'blocked' | 'error'; text?: string };
 const EMPTY_P: Progress = { step: 0, visited: [], referenceViewed: false, hintsOpened: [] };
 const EMPTY_R: Reflection = { understand: '', likes: [], dislikes: '', next: [] };
@@ -19,8 +20,14 @@ export function required(data: any, answers: Answers) {
   if (data.format === 'guided' && data.guide) {
     const fields = data.guide.practice.flatMap((p: any) => p.fields.map((f: any) => ({ ...f, practice: p.id }))).filter((f: any) => f.required !== false);
     const ok = (f: any) => { const v = answers[f.id]; return f.kind === 'choices' ? Array.isArray(v) && v.length > 0 && v.every(x => f.options.includes(x)) : typeof v === 'string' && v.trim().length >= 2; };
-    const missing = fields.filter((f: any) => !ok(f));
-    return { total: fields.length, done: fields.length - missing.length, missing: missing.map((f: any) => ({ label: f.label, practice: f.practice })) };
+    const missing = fields.filter((f: any) => !ok(f)).map((f: any) => ({ label: f.label, practice: f.practice }));
+    let total = fields.length;
+    if (data.guide.quick) { // 与服务端 QUICK_ACTION_LABEL 规则一致：选一项建议行动，或写自己的方案
+      total++; const a = answers['plan.actions'], own = answers['plan.own'];
+      const okA = Array.isArray(a) && a.length > 0 && a.every(x => data.guide.quick.actions[x]);
+      if (!okA && !(typeof own === 'string' && own.trim().length >= 2)) missing.push({ label: '下周先做什么（选一项建议，或写自己的方案）', practice: 'plan' });
+    }
+    return { total, done: total - missing.length, missing };
   }
   const missing = data.tasks.map((t: any, i: number) => { const s = typeof answers[String(i)] === 'string' ? answers[String(i)] as string : ''; const good = !t.options ? s.trim().length >= 2 : t.options.some((o: string) => s.startsWith(o + '：') && s.slice(o.length + 1).trim().length >= 2); return good ? null : { label: t.title, practice: 't' + i }; }).filter(Boolean);
   return { total: data.tasks.length, done: data.tasks.length - missing.length, missing };
@@ -138,7 +145,7 @@ export function Work({ id }: { id: string }) {
   const readonly = !guide || guide.unavailable || ['conflict', 'gone', 'offline', 'blocked'].includes(save.kind);
   const setAnswer = (k: string, v: string | string[]) => { if (readonly) return; setAnswers(a => { const n = { ...a, [k]: v }; latest.current.answers = n; return n; }); touch(); };
   const go = (step: number) => {
-    setProgress(p => { const n = { ...p, step, visited: [...new Set([...p.visited, p.step, step])].sort(), referenceViewed: p.referenceViewed || step === 4 }; latest.current.progress = n; return n; });
+    setProgress(p => { const n = { ...p, step, visited: [...new Set([...p.visited, p.step, step])].sort(), referenceViewed: p.referenceViewed || step === (guide?.data?.guide?.quick ? 3 : 4) }; latest.current.progress = n; return n; });
     if (!readonly) touch();
     window.scrollTo({ top: 0, behavior: 'auto' }); setTimeout(() => heading.current?.focus(), 0);
   };
@@ -180,7 +187,8 @@ export function Work({ id }: { id: string }) {
   if (!guide) return <Loading />;
   if (guide.unavailable) return <div className="wrap page"><h1>这个岗位体验已下线</h1><p className="lede">暂时不能继续保存或完成。你之前保存的草稿和完成记录都还在，可以在「我的」查看。</p><p style={{ marginTop: 16 }}><Link className="btn" href="/me">查看我的内容 →</Link></p></div>;
 
-  const data = guide.data; const g = data.guide; const guided = data.format === 'guided' && g;
+  const data = guide.data; const g = data.guide; const guided = data.format === 'guided' && g; const quick = !!(guided && g.quick);
+  const steps = quick ? QUICK_STEPS : STEPS;
   const status = required(data, answers);
   const step = guided ? progress.step : 0;
   const user = session?.identity.userId;
@@ -191,13 +199,25 @@ export function Work({ id }: { id: string }) {
   };
   const [cls, label] = saveView[save.kind];
   const stepState = (i: number) => {
+    if (quick) { const seen = progress.visited.includes(i) || i === step; if (i === 2) return status.done === status.total ? ['done', '已写好'] : status.done > 0 ? ['part', '写了一部分'] : [seen ? 'part' : '', seen ? '未写完' : '未开始']; if (i === 1) { const n = progress.hintsOpened.filter(h => h.startsWith('open:')).length; return n ? ['done', '已看 ' + n + ' 份'] : [seen ? 'part' : '', seen ? '还没打开' : '未看']; } return seen ? ['done', '已看'] : ['', '未看']; }
     const seen = progress.visited.includes(i) || i === step;
     if (i === 3) return status.done === status.total ? ['done', '已作答 ' + status.done + '/' + status.total] : status.done > 0 ? ['part', '已作答 ' + status.done + '/' + status.total] : [seen ? 'part' : '', seen ? '已浏览 · 未作答' : '未开始'];
     return progress.visited.includes(i) || i === step ? ['done', '已浏览'] : ['', '未看'];
   };
-  const matList: any[] = guided ? (step >= 2 && step <= 4 ? g.brief.materials : []) : (data.scene ? [{ id: 'scene', title: '情境', kind: 'text', text: data.scene }] : []);
+  const matList: any[] = quick ? [] : guided ? (step >= 2 && step <= 4 ? g.brief.materials : []) : (data.scene ? [{ id: 'scene', title: '情境', kind: 'text', text: data.scene }] : []);
   const relatedJobs = items.filter(i => i.kind === 'job' && i.status === 'published' && (g?.related.jobs || []).includes(i.id));
   const relatedExps = items.filter(i => i.kind === 'experience' && (g?.related.experiences || []).includes(i.id));
+
+  const finishBlock = <section className="sec-card" aria-labelledby="finish-h">
+            <h2 id="finish-h">完成并保存记录</h2>
+            <p className="small ink2">完成记录只表示你完成了这次模拟体验，<b>不代表实习经历或职业资格</b>，也不会发给任何企业。</p>
+            <p className="small" style={{ marginTop: 8 }}>作答进度：{status.done} / {status.total} 项{status.done === status.total ? ' · 都写好了' : ''}</p>
+            {status.missing.length > 0 && <div className="notice" style={{ marginTop: 10 }}><b>还差这些没写：</b><ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>{status.missing.map((m: any) => <li key={m.label}>{guided ? <button className="text-btn" onClick={() => { go(quick ? 2 : 3); setTimeout(() => document.getElementById('pr-' + m.practice)?.scrollIntoView({ block: 'start' }), 50); }}>{m.label}</button> : m.label}</li>)}</ul><p className="xs muted" style={{ marginTop: 6 }}>只看内容、不作答，不会生成完成记录。每项至少写两个字即可，没有标准答案。</p></div>}
+            {!user && session?.loginAvailable === false ? <div className="notice" style={{ marginTop: 12 }} data-testid="trial-note"><b>试用期间暂未开放登录，完成记录暂时不能保存。</b>{guestSaveNote(session.sessionDays)}</div>
+              : !user ? <div className="notice" style={{ marginTop: 12 }}>保存完成记录需要登录。登录后，你在这台设备上写的作答会合并到账号里（规则见登录页）。<div style={{ marginTop: 10 }}><Link className="btn btn-primary" href={'/login?next=' + encodeURIComponent('/experiences/' + id + '/work')}>登录后保存记录</Link></div></div>
+              : <div className="row" style={{ marginTop: 12 }}><button className="btn btn-primary" disabled={submitting || readonly || status.missing.length > 0} onClick={submit}>{submitting ? '正在保存…' : '完成并保存记录'}</button>{done && <span className="small muted">已完成过，再点只会打开原记录</span>}</div>}
+            {submitError && <p className="err" role="alert" style={{ marginTop: 8 }}>{submitError.text}</p>}
+          </section>;
 
   return <>
     <div className="work-head">
@@ -211,7 +231,7 @@ export function Work({ id }: { id: string }) {
             {save.kind === 'error' && <button className="btn btn-sm" onClick={() => { dirty.current = true; void flush(); }}>重试保存</button>}
           </div>
         </div>
-        {guided && <ol className="stepper" aria-label="体验步骤">{STEPS.map((s, i) => { const [c, t] = stepState(i); return <li key={s}><button type="button" aria-current={step === i ? 'step' : undefined} onClick={() => go(i)}><span className="n">第 {i + 1} 步</span><span className="t">{s}</span><span className={'s ' + c}>{t}</span></button></li>; })}</ol>}
+        {guided && <ol className={'stepper' + (quick ? ' stepper-4' : '')} aria-label="体验步骤">{steps.map((s, i) => { const [c, t] = stepState(i); return <li key={s}><button type="button" aria-current={step === i ? 'step' : undefined} onClick={() => go(i)}><span className="n">第 {i + 1} 步</span><span className="t">{s}</span><span className={'s ' + c}>{t}</span></button></li>; })}</ol>}
       </div>
     </div>
     {matList.length > 0 && <div className="mobile-tools"><div className="wrap row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap', width: '100%' }}>
@@ -232,7 +252,7 @@ export function Work({ id }: { id: string }) {
         <div className="row" style={{ marginTop: 10 }}><button className="btn btn-sm btn-primary" onClick={useBackupNow}>用本机这份继续</button><button className="btn btn-sm" onClick={dropBackup}>保留服务器上的草稿</button></div></div>}
       {conflict && <ConflictChooser conflict={conflict} data={data} onPick={resolve} />}
 
-      <div className="work">
+      {quick ? null : <div className="work">
         <div className="work-main" onFocus={e => { const t = e.target as HTMLElement; if (t.matches('input,textarea,select')) lastField.current = t; }}>
           {!guided ? <SimpleTasks data={data} answers={answers} set={setAnswer} readonly={readonly} heading={heading} refViewed={progress.referenceViewed} onViewRef={viewRef} status={status} done={!!done} openMats={matList.length ? () => setMats(true) : undefined} /> : <>
             <div className="eyebrow">第 {step + 1} 步 / 共 6 步 · {STEPS[step]}</div>
@@ -245,16 +265,7 @@ export function Work({ id }: { id: string }) {
             {step === 5 && <WrapStep data={data} reflection={reflection} setRefl={setRefl} relatedJobs={relatedJobs} relatedExps={relatedExps} company={guide.company} items={items} />}
           </>}
 
-          {(!guided || step === 5) && <section className="sec-card" aria-labelledby="finish-h">
-            <h2 id="finish-h">完成并保存记录</h2>
-            <p className="small ink2">完成记录只表示你完成了这次模拟体验，<b>不代表实习经历或职业资格</b>，也不会发给任何企业。</p>
-            <p className="small" style={{ marginTop: 8 }}>作答进度：{status.done} / {status.total} 项{status.done === status.total ? ' · 都写好了' : ''}</p>
-            {status.missing.length > 0 && <div className="notice" style={{ marginTop: 10 }}><b>还差这些没写：</b><ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>{status.missing.map((m: any) => <li key={m.label}>{guided ? <button className="text-btn" onClick={() => { go(3); setTimeout(() => document.getElementById('pr-' + m.practice)?.scrollIntoView({ block: 'start' }), 50); }}>{m.label}</button> : m.label}</li>)}</ul><p className="xs muted" style={{ marginTop: 6 }}>只看内容、不作答，不会生成完成记录。每项至少写两个字即可，没有标准答案。</p></div>}
-            {!user && session?.loginAvailable === false ? <div className="notice" style={{ marginTop: 12 }} data-testid="trial-note"><b>试用期间暂未开放登录，完成记录暂时不能保存。</b>{guestSaveNote(session.sessionDays)}</div>
-              : !user ? <div className="notice" style={{ marginTop: 12 }}>保存完成记录需要登录。登录后，你在这台设备上写的作答会合并到账号里（规则见登录页）。<div style={{ marginTop: 10 }}><Link className="btn btn-primary" href={'/login?next=' + encodeURIComponent('/experiences/' + id + '/work')}>登录后保存记录</Link></div></div>
-              : <div className="row" style={{ marginTop: 12 }}><button className="btn btn-primary" disabled={submitting || readonly || status.missing.length > 0} onClick={submit}>{submitting ? '正在保存…' : '完成并保存记录'}</button>{done && <span className="small muted">已完成过，再点只会打开原记录</span>}</div>}
-            {submitError && <p className="err" role="alert" style={{ marginTop: 8 }}>{submitError.text}</p>}
-          </section>}
+          {(!guided || step === 5) && finishBlock}
 
           {guided && <nav className="nav-steps" aria-label="上一步和下一步">
             {step > 0 ? <button className="btn" onClick={() => go(step - 1)}>← 上一步：{STEPS[step - 1]}</button> : <span />}
@@ -272,8 +283,11 @@ export function Work({ id }: { id: string }) {
           {guided && step >= 2 && step <= 4 && <details className="panel side-mats" open={step === 3}><summary className="panel-b" style={{ cursor: 'pointer', fontWeight: 700 }}>任务材料（{g.brief.materials.length} 份）</summary><div className="panel-b" style={{ paddingTop: 0 }}>{g.brief.materials.map((m: any) => <Material key={m.id} m={m} />)}</div></details>}
           {guided && <div className="panel"><div className="panel-b"><b className="small">术语表</b><Terms names={g.glossary.map((t: any) => t.term)} glossary={g.glossary} /></div></div>}
         </aside>
-      </div>
+      </div>}
     </div>
+    {quick && <QuickWork id={id} data={data} g={g} answers={answers} set={setAnswer} readonly={readonly} progress={progress} go={go} openHint={openHint} heading={heading}
+      reflection={reflection} setRefl={setRefl} finish={finishBlock} relatedExps={relatedExps} relatedJobs={relatedJobs} items={items} lastField={lastField}
+      saveLabel={<span className={'save-state ' + cls} role="status">第 {step + 1} 步 · {label}</span>} />}
   </>;
 }
 
