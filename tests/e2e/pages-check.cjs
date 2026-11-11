@@ -64,7 +64,7 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
     await p.goto(SITE + '/', { waitUntil: 'networkidle' }); await p.click('a:has-text("开始 8 分钟体验")'); await p.waitForURL('**/ops-returns/work/');
     await p.waitForSelector('.msg'); ok(await p.locator('textarea').count() === 0, '第一屏不应该出现长表单'); await save(p, '03-桌面-第1步-收到任务');
     await p.click('button:has-text("开始：去后台看看")'); await p.waitForSelector('.matc');
-    ok(await p.evaluate(() => document.activeElement?.id) === 'q-h', '换步骤后焦点没有到标题');
+    await p.waitForFunction(() => document.activeElement?.id === 'q-h', null, { timeout: 5000 }).catch(() => {}); ok(await p.evaluate(() => document.activeElement?.id) === 'q-h', '换步骤后焦点没有到标题');
     await p.click('.matc:has-text("退货原因") .matc-h button'); await p.click('.matc:has-text("退货原因") button:has-text("标为关键")');
     await p.click('.matc:has-text("差评和适配表") .matc-h button'); await p.click('.matc:has-text("第 4 周改了什么") .matc-h button');
     ok(await p.locator('.matc:has-text("退货原因") button[aria-pressed="true"]').count() === 1, '标为关键没有生效');
