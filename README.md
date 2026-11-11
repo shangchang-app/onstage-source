@@ -53,7 +53,7 @@ npm run package:pages                    # 打成 release/onstage-site-<版本>-
 线上仓库 `shangchang-app/onstage` 只放发布包，不放源码。它的 Actions 会解压根目录里**唯一的** `.zip`，然后发布。
 
 - **发布**：从本仓库 Releases 下载对应提交的 `onstage-site-…zip`，核对 SHA256；再在线上仓库删掉旧的 zip、上传新的 zip，等 Actions 变绿；最后打开 `/onstage/version.json` 核对提交号。
-- **回滚**：线上仓库的标签 `v1.4.1-live` 指向 V1.4.1 的部署提交。用那个标签下的 `site.zip` 替换当前 zip 即可（详细步骤和本地数据兼容性见 `docs/V1.6-验收与发布.md`）。
+- **回滚**：线上仓库的提交 `5eed8ae` 就是 V1.4.1 的发布包（`site.zip`，sha256 `10d61ad4…4f23`），git 历史会一直保留它。用它替换当前 zip 即可（详细步骤和本地数据兼容性见 `docs/V1.6-验收与发布.md`）。
 
 ## 正式版（服务器）：环境要求
 
