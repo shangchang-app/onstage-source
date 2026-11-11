@@ -1,8 +1,9 @@
 // 同源升级 + 回滚检查（V1.7）。
 // 线上 https://shangchang-app.github.io/onstage/ 和预览 /onstage-source/ 在同一个源下，localStorage 是共用的。
 // 这里在本机用同一个源模拟：/onstage/ 放旧版发布包（V1.4.1），/onstage-source/ 放新版，按真实用户的顺序来回切换：
-//   1. 旧版写草稿 → 2. 新版读到并写入（完整版、短版、成果）→ 3. 回到旧版：旧数据还在、能继续保存、不改动新版数据
+//   1. 旧版写草稿 → 2. 新版读到并写入（完整版、短版；在完整版里实际作答并点「保存成果」）→ 3. 回到旧版：旧数据还在、能继续保存、不改动新版数据
 //   → 4. 再回到新版：新版写入的内容没有被旧版或二次迁移覆盖。
+// V1.7 隐藏工位搭子的数据（onstage-buddy:v1）也一起检查：旧版不读不写它。
 // 每一步都把 localStorage 全量存成 JSON（test-results/rollback/），出问题时可以对照、恢复。
 // 用法：node tests/e2e/rollback-check.cjs <旧版目录> <新版目录（用 --base=/onstage-source 构建）>
 const { chromium } = require('playwright');
@@ -25,7 +26,7 @@ async function step(name, fn) { try { await fn(); results.push({ name, pass: tru
 (async () => {
   const server = http.createServer(serve).listen(0, '127.0.0.1'); await new Promise(r => server.once('listening', r));
   const ORIGIN = `http://127.0.0.1:${server.address().port}`, O = ORIGIN + '/onstage', N = ORIGIN + '/onstage-source';
-  const b = await chromium.launch();
+  const b = await chromium.launch(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH, args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage'] } : {}); // CHROME_PATH：没有 Playwright 自带浏览器时用本机 Chrome
   const c = await b.newContext({ viewport: { width: 1280, height: 860 } }); // 全新、隔离的浏览器环境
   const p = await c.newPage(); const errors = []; p.on('pageerror', e => errors.push(e.message));
   const dump = async name => { const all = await p.evaluate(() => Object.fromEntries(Object.keys(localStorage).sort().map(k => [k, localStorage.getItem(k)]))); fs.writeFileSync(path.join(OUT, name + '.json'), JSON.stringify(all, null, 2)); return all; };
@@ -50,9 +51,21 @@ async function step(name, fn) { try { await fn(); results.push({ name, pass: tru
       await typeInto('#f-p1-before', '4.7%（新版改过）');
       await p.goto(N + '/experiences/ops-returns/work/', { waitUntil: 'networkidle' }); await p.waitForSelector('.msg');
       await p.click('.stepper li:nth-child(3) button'); await p.waitForSelector('#f-plan-reason'); await p.fill('#f-plan-reason', '新版短版写的理由'); await p.locator('#f-plan-reason').blur(); await saved();
-      // 成果：用新版自己的格式写一份（和「保存成果」写入的结构相同），检查旧版不会改动它
-      await p.evaluate(() => { const at = new Date().toISOString(); localStorage.setItem('onstage-works:v1', JSON.stringify({ schema: 1, works: [{ id: 'rollback-test-work', label: '教学模拟作品', experienceId: 'ops-returns-deep', experienceTitle: '完整版：退货率上升，写一份问题诊断与行动建议', direction: '跨境电商运营', outputTitle: '问题诊断与行动建议卡', contentVersion: 1, createdAt: at, updatedAt: at, sections: [{ heading: '问题概述', items: [{ label: '前 3 周整体退货率', text: '4.7%（新版改过）' }] }], before: null, revisions: [] }] })); });
+      // 成果：在新版完整版里实际作答并点「保存成果」（通过界面保存，不直接写本地存储）
+      const NUM = { 'f-p0-rate': '3.7%', 'f-p1-before': '约 4.7%', 'f-p1-after': '约 11.1%', 'f-t-before': '5.1%', 'f-t-after': '5.1%' };
+      const fill = async () => { for (const sec of await p.locator('.practice').all()) { for (const f of await sec.locator('fieldset').all()) if (await f.locator('input:checked').count() === 0) await f.locator('.choice').first().click(); for (const el of await sec.locator('input.input, textarea').all()) { const id = await el.getAttribute('id'); if (!(await el.inputValue())) await el.fill(NUM[id] || '新版界面作答：' + id); } } };
+      await p.goto(N + '/experiences/ops-returns-deep/work/', { waitUntil: 'networkidle' }); await p.waitForSelector('.stepper');
+      await p.click('.stepper li:nth-child(2) button'); await p.waitForTimeout(150);
+      await p.click('.stepper li:nth-child(4) button'); await p.waitForSelector('.practice'); await fill(); await saved();
+      await p.click('.stepper li:nth-child(5) button'); await p.waitForSelector('#chg-h');
+      await p.click('.stepper li:nth-child(6) button'); await p.waitForSelector('.transfer-intro'); await fill(); await saved();
+      await p.click('[data-testid="save-work"]'); await p.waitForSelector('.out-side .ok-box'); ok((await p.locator('.out-side .ok-box').innerText()).includes('已保存到本机'), '新版没有通过界面保存成果');
+      // V1.7 隐藏工位搭子：在新版答两题，检查旧版回滚时不会改动或删除它的数据（onstage-buddy:v1）
+      await p.goto(N + '/buddy/', { waitUntil: 'networkidle' }); await p.getByRole('button', { name: '开始' }).click(); await p.waitForSelector('.bd-opt');
+      await p.locator('.bd-opt').nth(1).click(); await p.locator('.bd-nav .btn-primary').click(); await p.waitForSelector('text=2 / 8'); await p.locator('.bd-opt').nth(2).click();
       s2 = await dump('2-新版写入后');
+      ok(Object.keys(JSON.parse(s2['onstage-buddy:v1']).answers).length === 2, '隐藏工位搭子的作答没有保存');
+      const works = JSON.parse(s2['onstage-works:v1']).works; ok(works.length === 1 && works[0].experienceId === 'ops-returns-deep' && JSON.stringify(works[0]).includes('4.7%（新版改过）'), '界面保存的成果不对');
       const d = db(s2); ok(d.schema === 2, '新版没有标记迁移完成');
       ok(d.drafts['ops-returns-deep']?.answers['p1.before'] === '4.7%（新版改过）', '完整版草稿不对');
       ok(d.drafts['ops-returns']?.answers['p1.before'] === '4.7%', '迁移时改动了旧版原处的作答');
@@ -73,6 +86,7 @@ async function step(name, fn) { try { await fn(); results.push({ name, pass: tru
       ok(after.drafts['ops-returns'].answers['p5.first'] === '回滚后在旧版改写的行动', '旧版没有保存成功');
       ok(s3['onstage-works:v1'] === s2['onstage-works:v1'], '旧版改动了成果');
       ok(s3['onstage:migrated:v16'] === s2['onstage:migrated:v16'], '旧版改动了迁移标记');
+      ok(s3['onstage-buddy:v1'] === s2['onstage-buddy:v1'], '旧版改动了隐藏工位搭子的数据');
       for (const k of Object.keys(s2)) ok(k in s3, '回滚后少了一项本地数据：' + k);
     });
 
@@ -83,7 +97,11 @@ async function step(name, fn) { try { await fn(); results.push({ name, pass: tru
       await p.goto(N + '/experiences/ops-returns/work/', { waitUntil: 'networkidle' }); await p.waitForSelector('.stepper');
       await p.click('.stepper li:nth-child(3) button'); await p.waitForSelector('#f-plan-reason'); ok(await p.inputValue('#f-plan-reason') === '新版短版写的理由', '短版作答丢了');
       await p.goto(N + '/me/', { waitUntil: 'networkidle' }); await p.waitForSelector('#h-works'); ok((await p.locator('main').innerText()).includes('问题诊断与行动建议卡'), '成果不见了');
+      await p.locator('.list-row', { hasText: '问题诊断与行动建议卡' }).locator('a:has-text("打开")').click(); await p.waitForURL('**/works/?id=*'); await p.waitForSelector('.work-card');
+      ok((await p.locator('.work-card').innerText()).includes('4.7%（新版改过）'), '再升级后从「我的」打开的成果内容不对');
       const s4 = await dump('4-再升级后'); ok(db(s4).drafts['ops-returns'].answers['p5.first'] === '回滚后在旧版改写的行动', '旧版期间的改动丢了');
+      ok(s4['onstage-buddy:v1'] === s2['onstage-buddy:v1'], '再升级后隐藏工位搭子的数据变了');
+      await p.goto(N + '/buddy/', { waitUntil: 'networkidle' }); await p.waitForSelector('text=2 / 8'); ok(await p.locator('.bd-opt.on').count() === 1, '再升级后隐藏工位搭子没有接着上次的进度');
       ok(errors.length === 0, errors.join(' | '));
     });
   } catch { /* 第一处失败即停止，结果已记录 */ }

@@ -1,5 +1,8 @@
 name: Build, test and preview
-# 每次推送到 main：在干净环境里安装、测试、构建线上发布包和预览；发布包发到 Releases，预览部署到 GitHub Pages。
+# 每次推送到 main（也就是 PR 合并之后）：在干净环境里安装、测试、构建线上发布包和预览；发布包发到 Releases（预发布），
+# 预览部署到本仓库的 GitHub Pages（https://<用户名>.github.io/<本仓库名>/）。**不会改动正式站**：正式站在另一个仓库 shangchang-app/onstage，
+# 只有手动把发布包换上去才会更新。
+# 部署成功之后，verify-deployed-preview 才去打开真实的预览网址，核对页面、二维码入口和提交号；合并前的检查在 ci.yml。
 on:
   push:
     branches: [main]
@@ -91,3 +94,25 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+  verify-deployed-preview:
+    # 部署成功之后才运行：打开真实的预览网址，核对分享卡二维码指向的 /buddy/ 能打开、是隐藏工位搭子，
+    # 而且页面页脚和 version.json 都是这次的提交（只解码出网址不算数）。GitHub Pages 生效可能有延迟，所以重试。
+    needs: deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - name: Open the deployed preview and its QR target
+        run: |
+          set -o pipefail
+          SHORT=$(git rev-parse --short HEAD)
+          SITE="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+          node scripts/check-qr-target.mjs "$SITE/buddy/" --commit "$SHORT" --retries 12 --wait 20 2>&1 | tee verify-preview.log
+          curl -sSf "$SITE/" | grep -q "on stage" || { echo "::error::预览首页打不开或不是 on stage"; exit 1; }
+          echo "### 部署后检查：$SITE/buddy/ 可以打开，提交 $SHORT" >> "$GITHUB_STEP_SUMMARY"

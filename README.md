@@ -40,6 +40,17 @@ npm run package:pages                    # 打成 release/onstage-site-<版本>-
 
 ## 持续构建与预览（GitHub Actions）
 
+有两个工作流，**合并前测试**和**合并后部署**分开：
+
+| | `ci.yml`（PR tests） | `preview.yml`（Build, test and preview） |
+|---|---|---|
+| 什么时候跑 | 每个指向 `main` 的合并请求（PR） | 推送到 `main`（合并之后） |
+| 权限 | 只读：不写仓库、不建 Release、不部署、不用任何密钥 | 写 Releases、部署本仓库的 GitHub Pages 预览 |
+| 检查 | 类型、单元测试、规则表是否最新、两种路径的构建与浏览器测试、二维码内容与本机路径、同源回滚 | 同样的测试，再打包、发布预发布 Release、部署预览 |
+| 线上网址 | **不检查**（那时还没部署；工作流摘要里写明「未检查」） | 部署成功后 `verify-deployed-preview` 打开真实预览网址，核对 `/buddy/` 和提交号 |
+
+两个工作流都**不会改动正式站**（正式站在 `shangchang-app/onstage`，只有手动换发布包才会更新）。
+
 `.github/workflows/preview.yml`：每次推送到 `main`，都会在干净环境里依次运行：
 
 1. `npm ci`、类型检查、单元测试；
@@ -47,7 +58,8 @@ npm run package:pages                    # 打成 release/onstage-site-<版本>-
 3. 用前缀 `/onstage-source` 构建预览，并运行静态版测试；
 4. 同源升级与回滚测试：下载线上 V1.4.1 发布包（核对 SHA256），和新预览放在同一个源下来回切换；
 5. 发布包另存为构建附件 `release-package`，并发到本仓库的 Releases（标签 `build-<提交号前 7 位>`，标为预发布；这一步失败不影响预览部署，发布包仍可从附件下载）；
-6. 把预览部署到 GitHub Pages。
+6. 把预览部署到 GitHub Pages；
+7. 部署成功后，打开真实的预览网址：`/buddy/`（分享卡二维码指向的页面）能打开、是隐藏工位搭子，页脚和 `version.json` 都是这次的提交。
 
 测试日志和截图作为 Actions 附件保存。
 

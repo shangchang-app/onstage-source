@@ -1,0 +1,27 @@
+on stage「你的隐藏工位搭子」图标来源与许可
+================================================
+
+一、Noto Emoji 图片（11 个）
+来源：Google Noto Emoji 项目 https://github.com/googlefonts/noto-emoji
+版本：提交 99701e07d3d1fe1bdbcdb14964547f0fd592966f（2026-10-26），目录 2D/png/512/
+许可：Apache License 2.0。项目 README 说明「Tools and most image resources are under the Apache license, version 2.0」；
+      2D/svg/LICENSE 的许可声明原文见 NOTO-EMOJI-LICENSE-NOTICE.txt，许可全文见 LICENSE-Apache-2.0.txt。
+Copyright 2013 Google, Inc.
+
+使用的文件（只改了文件名，图片内容未修改）：
+  fox.png       ← emoji_u1f98a.png（🦊 狐狸）
+  otter.png     ← emoji_u1f9a6.png（🦦 水獭）
+  cat.png       ← emoji_u1f408.png（🐈 猫）
+  squirrel.png  ← emoji_u1f43f.png（🐿 花栗鼠，用作松鼠）
+  seal.png      ← emoji_u1f9ad.png（🦭 海豹）
+  raccoon.png   ← emoji_u1f99d.png（🦝 浣熊）
+  octopus.png   ← emoji_u1f419.png（🐙 章鱼）
+  owl.png       ← emoji_u1f989.png（🦉 猫头鹰）
+  penguin.png   ← emoji_u1f427.png（🐧 企鹅）
+  rabbit.png    ← emoji_u1f407.png（🐇 兔子）
+  hedgehog.png  ← emoji_u1f994.png（🦔 刺猬）
+
+二、on stage 自制图标（2 个，不是 Noto 官方资源）
+  collie.svg / collie.png       叼着 Demo 的边牧（画的是边牧风格的狗，不代表准确犬种）
+  platypus.svg / platypus.png   不按物种出牌的鸭嘴兽
+参照 Noto Emoji 的画风原创绘制，没有复制 Noto 的图形。PNG 由同名 SVG 渲染（512×512）。
