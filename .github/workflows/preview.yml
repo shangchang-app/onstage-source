@@ -1,0 +1,75 @@
+name: Build, test and preview
+# 每次推送到 main：在干净环境里安装、测试、构建线上发布包和预览；发布包发到 Releases，预览部署到 GitHub Pages。
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: preview
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - name: Install (npm ci)
+        run: npm ci 2>&1 | tee ci-install.log
+      - name: Typecheck and unit tests
+        run: |
+          set -o pipefail
+          npm run typecheck 2>&1 | tee ci-typecheck.log
+          npm test 2>&1 | tee ci-unit.log
+      - name: Install Chromium for browser tests
+        run: npx playwright install --with-deps chromium
+      - name: Build release package for the live site (/onstage) and run static tests
+        run: |
+          set -o pipefail
+          npm run build:static 2>&1 | tee ci-build-live.log
+          PAGES_BASE=/onstage npm run test:pages 2>&1 | tee ci-pages-live.log
+          npm run package:pages 2>&1 | tee ci-package.log
+          mkdir -p out/live && cp -r release/* out/live/ && cp dist-pages/version.json out/live/
+          mv test-results out/test-results-live
+      - name: Build preview (/onstage-source) and run static tests
+        run: |
+          set -o pipefail
+          npm run build:static -- --base=/${{ github.event.repository.name }} 2>&1 | tee ci-build-preview.log
+          PAGES_BASE=/${{ github.event.repository.name }} npm run test:pages 2>&1 | tee ci-pages-preview.log
+          mv test-results out/test-results-preview
+      - name: Keep logs and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-and-screenshots
+          path: |
+            ci-*.log
+            out/
+          if-no-files-found: warn
+      - name: Publish release package (Releases)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SHORT=$(git rev-parse --short HEAD)
+          SHA=$(cut -d' ' -f1 out/live/*.sha256)
+          printf '自动构建：提交 %s\n\n发布包（网址前缀 /onstage，用于线上仓库 shangchang-app/onstage）：\n- 文件：%s\n- SHA256：%s\n\nversion.json：\n```\n%s\n```\n' "$GITHUB_SHA" "$(ls out/live/*.zip | xargs -n1 basename)" "$SHA" "$(cat out/live/version.json)" > notes.md
+          gh release create "build-$SHORT" out/live/*.zip out/live/*.sha256 out/live/release.json --prerelease --title "构建 $SHORT（1.6.x）" --notes-file notes.md --target "$GITHUB_SHA"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist-pages
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
