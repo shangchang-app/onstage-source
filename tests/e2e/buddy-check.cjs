@@ -296,7 +296,8 @@ const WORKS = JSON.stringify({ schema: 1, works: [{ id: 'w-keep', title: '保留
   await check('图标加载失败：页面用占位块，分享卡给出明确错误和截图用卡片视图', async () => {
     const { c, p } = await ctx(mobile); await p.route('**/buddy/icons/**', r => r.abort());
     await start(p); await runPath(p, P.roles[2].answers); await resultName(p);
-    ok(await p.locator('.bd-icon-miss').count() >= 1, '没有占位块');
+    // 被拦截的图标请求是异步失败的：结果标题出现时，图片的 error 事件可能还没触发，所以等占位块出现（最多 5 秒），不立刻计数
+    ok(await p.locator('.bd-icon-miss').first().waitFor({ timeout: 5000 }).then(() => true, () => false), '没有占位块');
     await p.getByRole('button', { name: '保存分享卡' }).click(); await p.waitForSelector('.modal [role="alert"]');
     ok((await p.locator('.modal [role="alert"]').innerText()).includes('角色图标没有加载出来'), '错误提示不明确');
     ok(await p.locator('[data-testid="shot-card"]').count() === 1, '没有截图视图'); ok(await p.getByRole('button', { name: '下载图片' }).count() === 0, '失败时不应有下载按钮');
