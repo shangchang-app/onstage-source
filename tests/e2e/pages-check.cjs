@@ -45,7 +45,7 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
   await check('首页：品牌和副标题、趣味入口（未开放不显示按钮）、下面直接是岗位实践；标注示例；没有登录入口', async () => {
     const { c, p } = await ctx({ deviceScaleFactor: 2 }); await p.goto(SITE + '/', { waitUntil: 'networkidle' });
     const t = await p.locator('main').innerText();
-    for (const k of ['on stage', '探索工作，也探索自己。', '你的隐藏工位搭子，', '藏不住了。', '情境娱乐探索，非专业人格或职业测评。', '做完能得到什么', '示例', '2 个岗位主题', '有短版和完整版两种深度', '不是 2 个不同岗位', '简版练习', '正在规划', '两个 AI 回答', '问题诊断与行动建议卡', '评测标准与案例分析', '机会库里目前只有示例信息']) ok(t.includes(k), '首页缺少：' + k);
+    for (const k of ['on stage', '探索工作，也探索自己。', '你的隐藏工位搭子，', '藏不住了。', '情境娱乐探索，非专业人格或职业测评。', '做完能得到什么', '示例', '3 个岗位主题', '有短版和完整版两种深度', '不是 2 个不同岗位', '简版练习', '正在规划', '两个 AI 回答', '问题诊断与行动建议卡', '评测标准与案例分析', '机会库里目前只有示例信息']) ok(t.includes(k), '首页缺少：' + k);
     ok(await p.locator('main .card:has-text("实习生")').count() === 0, '首页不应推荐示例岗位');
     ok(!t.includes('找到机会，提前上场') && !t.includes('先试着做一次工作'), '首页还有旧副标题或重复的大标题');
     ok(await p.locator('main :is(a,button):has-text("看看是谁")').count() === 0 && await p.locator('[data-testid="fun-soon"]').count() === 1, '动物模块未完成时不应显示按钮');
