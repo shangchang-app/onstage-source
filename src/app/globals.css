@@ -495,4 +495,24 @@ fieldset.qf[disabled] .choice{opacity:.6;cursor:not-allowed}
 .home-wm{font-size:clamp(40px,6vw,72px);line-height:1;font-weight:800;letter-spacing:-.035em}
 .home-sub{font-size:clamp(17px,2vw,22px);color:var(--ink2);margin-top:10px;font-weight:500}
 .home-top+.wrap .sec:first-child{padding-top:28px}
-@media (max-width:720px){ .home-top{padding-block:24px 4px;gap:18px} }
+@media (max-width:720px){ .home-top{padding-block:28px 4px;gap:18px} .home-wm{font-size:44px} body:has(.home-top) .site-head{display:none} }
+
+/* V1.7 首页趣味入口 */
+@media (min-width:961px){ .home-top{grid-template-columns:minmax(0,1fr) minmax(0,520px);gap:48px;padding-block:56px 16px} }
+.fun{background:var(--surface);border-radius:32px;box-shadow:var(--shadow-sm);padding:22px;display:flex;flex-direction:column;gap:16px}
+.fun-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.fun-top h2{font-size:clamp(21px,2.4vw,28px);line-height:1.3;font-weight:800}
+.fun-chip{flex:none;font-size:13px;font-weight:600;background:var(--sunken);border-radius:999px;padding:5px 12px}
+.fun-chat{background:var(--sunken);border-radius:22px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.fun-row{display:flex;gap:12px;align-items:flex-end}
+.fun-ava{width:52px;height:52px;flex:none;border-radius:16px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:30px;line-height:1}
+.fun-bubble{background:var(--surface);border-radius:18px 18px 18px 6px;padding:11px 15px;font-size:16px;line-height:1.5}
+.fun-more{display:flex;align-items:center;font-size:14px;color:var(--ink2)}
+.fun-mini{width:34px;height:34px;border-radius:50%;background:var(--surface);border:2px solid var(--sunken);display:inline-flex;align-items:center;justify-content:center;font-size:18px;line-height:1;margin-right:-8px}
+.fun-minis{display:inline-flex;margin-right:16px;flex:none}
+.fun-top h2 .nb{display:inline-block}
+.fun-top h2{text-wrap:wrap}
+.fun-foot{display:flex;justify-content:space-between;align-items:center;gap:10px 16px;flex-wrap:wrap}
+.fun-foot p{font-size:13px;color:var(--ink3)}
+.fun-soon{font-size:14px;font-weight:600;color:var(--ink2)}
+@media (max-width:720px){ .fun{padding:18px;border-radius:28px;gap:14px} .fun-ava{width:44px;height:44px;font-size:26px} .fun-chat{padding:14px} }

@@ -5,6 +5,7 @@ import { useSession } from './session';
 import { Modal } from './modal';
 import { Demo, ErrorBox, Grid, KindBadge, Loading, SOURCE_LABEL, STEPS, StatusBadge, date, daysLeft, expKind, guestSaveNote, routes, stepsFor, useCatalog, type Item } from './ui';
 import { SAMPLE_OUTPUTS, SAMPLE_PLAN, SAMPLE_REVIEW } from '@/lib/samples';
+import { FunEntry } from './fun-entry';
 
 export function Home() {
   const { items, error, loading } = useCatalog();
@@ -22,6 +23,7 @@ export function Home() {
         <h1 className="home-wm">on stage</h1>
         <p className="home-sub">探索工作，也探索自己。</p>
       </div>
+      <FunEntry />
     </div>
     {error ? <div className="wrap"><ErrorBox text={error} /></div> : loading ? <Loading /> : <div className="wrap">
       <section className="sec" aria-labelledby="h-exp"><div className="sec-h"><div><span className="sec-no">01</span><h2 id="h-exp">现在能完整做完的：{themes.length} 个岗位主题</h2><p>都可以随时暂停，下次在同一个浏览器里接着做。做完可以把成果保存在本机。</p><p className="small muted" style={{ marginTop: 6 }}>模拟工作场景，数据是虚构的教学数据。不是实习经历、能力认证或录用保证。</p></div><Link className="link-more" href="/experiences">全部岗位体验 →</Link></div>
