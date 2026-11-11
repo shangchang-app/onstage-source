@@ -460,7 +460,7 @@ fieldset.qf[disabled] .choice{opacity:.6;cursor:not-allowed}
 @media (max-width:720px){
   .nav{display:none}
   .shell{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
-  .tabbar{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;position:fixed;left:0;right:0;bottom:0;z-index:25;background:rgba(245,244,241,.97);border-top:1px solid var(--line);padding:8px max(12px,env(safe-area-inset-left,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-right,0px))}
+  .tabbar{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;position:fixed;left:0;right:0;bottom:0;z-index:25;background:var(--bg);box-shadow:0 -6px 18px rgba(21,21,21,.06);border-top:1px solid var(--line);padding:8px max(12px,env(safe-area-inset-left,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-right,0px))}
   .tabbar a{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px;font-weight:500;color:var(--ink2);text-decoration:none;padding:2px 0;min-height:56px}
   .tabbar .ti{width:46px;height:34px;border-radius:12px;background:var(--line);display:flex;align-items:center;justify-content:center;color:var(--ink)}
   .tabbar a[aria-current="page"]{color:var(--ink);font-weight:700}
