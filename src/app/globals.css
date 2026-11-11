@@ -489,3 +489,10 @@ fieldset.qf[disabled] .choice{opacity:.6;cursor:not-allowed}
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
   .card:hover{transform:none}
 }
+
+/* V1.7 首页：品牌区 + 趣味入口，下面直接是岗位实践 */
+.home-top{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;align-items:center;padding-block:40px 8px}
+.home-wm{font-size:clamp(40px,6vw,72px);line-height:1;font-weight:800;letter-spacing:-.035em}
+.home-sub{font-size:clamp(17px,2vw,22px);color:var(--ink2);margin-top:10px;font-weight:500}
+.home-top+.wrap .sec:first-child{padding-top:28px}
+@media (max-width:720px){ .home-top{padding-block:24px 4px;gap:18px} }

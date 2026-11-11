@@ -17,27 +17,14 @@ export function Home() {
   const themes = [...new Set(full.map(i => i.data.direction as string))].map(dir => [dir, full.filter(i => i.data.direction === dir)] as const);
   const start = flagship ? '/experiences/' + flagship.id + '/work' : '/experiences';
   return <>
-    <div className="wrap hero hero-v15">
-      <div>
-        <span className="pill"><i aria-hidden="true" />AI · 出海 · 互联网 · 大学生免费</span>
-        <h1 className="hero-h">先试着做一次工作，<br />再决定要不要走这条路。</h1>
-        <p className="hero-sub">on stage 把岗位上的一个真实工作场景，做成 5–10 分钟的线上任务：收到任务、看材料、给出你的方案，马上拿到复盘。不用等实习名额，也不用先投简历。</p>
-        <div className="row">
-          <Link className="btn btn-primary btn-lg" href={start}>开始 8 分钟体验 →</Link>
-          <Link className="btn btn-lg" href="/experiences">看看有哪些工作</Link>
-        </div>
-        <p className="xs muted" style={{ marginTop: 14 }}>模拟工作场景，数据是虚构的教学数据。不是实习经历、能力认证或录用保证。</p>
-      </div>
-      <div className="scene" aria-label="体验预览：模拟场景">
-        <div className="scene-top"><span className="badge b-orange">体验预览</span><span className="xs muted">跨境电商运营 · 模拟场景</span></div>
-        <div className="msg msg-sm"><div className="msg-avatar" aria-hidden="true">林</div><div className="msg-body"><div className="msg-meta"><b>林悦</b><span>运营负责人（虚构）</span><span>上午 10:12</span></div>
-          <p>这三周订单涨得不错，但财务说利润反而少了快一半。下周先做什么？为什么？还缺什么信息？</p></div></div>
-        <dl className="stats"><div><dt>订单</dt><dd>+42%</dd></div><div><dt>估算净利润</dt><dd>−48%</dd></div><div><dt>退货率</dt><dd>×2.3</dd></div></dl>
-        <ol className="scene-flow"><li><span><b>看材料</b>利润拆解、退货原因、差评和适配表、变更记录，自己决定看哪些</span></li><li><span><b>给方案</b>组合行动、写一两句理由、说出还缺什么</span></li><li><span><b>拿复盘</b>你的选择哪里合理、漏了什么、要权衡什么、怎么验证</span></li></ol>
+    <div className="wrap home-top">
+      <div className="home-brand">
+        <h1 className="home-wm">on stage</h1>
+        <p className="home-sub">探索工作，也探索自己。</p>
       </div>
     </div>
     {error ? <div className="wrap"><ErrorBox text={error} /></div> : loading ? <Loading /> : <div className="wrap">
-      <section className="sec" aria-labelledby="h-exp"><div className="sec-h"><div><span className="sec-no">01</span><h2 id="h-exp">现在能完整做完的：{themes.length} 个岗位主题</h2><p>都可以随时暂停，下次在同一个浏览器里接着做。做完可以把成果保存在本机。</p></div><Link className="link-more" href="/experiences">全部岗位体验 →</Link></div>
+      <section className="sec" aria-labelledby="h-exp"><div className="sec-h"><div><span className="sec-no">01</span><h2 id="h-exp">现在能完整做完的：{themes.length} 个岗位主题</h2><p>都可以随时暂停，下次在同一个浏览器里接着做。做完可以把成果保存在本机。</p><p className="small muted" style={{ marginTop: 6 }}>模拟工作场景，数据是虚构的教学数据。不是实习经历、能力认证或录用保证。</p></div><Link className="link-more" href="/experiences">全部岗位体验 →</Link></div>
         {themes.map(([dir, list]) => <div className="theme" key={dir}><h3 className="theme-h">{dir}<span className="small muted">{list.length > 1 ? `同一个情境，有短版和完整版两种深度（共 ${list.length} 个入口），不是 ${list.length} 个不同岗位` : '完整版'}</span></h3><Grid items={list} /></div>)}
         {simple.length > 0 && <div className="simple-list"><b className="small">简版练习</b><span className="small muted">只有任务和参考思路，没有成果页，完整版本还在制作：</span>
           <ul>{simple.map(i => <li key={i.id}><Link href={'/experiences/' + i.id}>{i.data.title}</Link> <span className="xs muted">{i.data.direction} · 约 {i.data.minutes} 分钟</span></li>)}</ul></div>}
