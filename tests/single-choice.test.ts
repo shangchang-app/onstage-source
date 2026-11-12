@@ -71,7 +71,7 @@ test('页面上的「还差」和保存入口用的规则与服务端一致，�
   const st = required(data, legacy);
   assert.deepEqual(st.missing, [{ label: '先服务哪类用户（选一类）：选了 2 项，只能选一项，请重新确认', practice: 'g1', field: SEG }]);
   assert.equal(required(data, full()).missing.length, 0);
-  for (const a of [full(), legacy, { ...full(), [CHG]: '不需要调整' }]) assert.deepEqual(required(data, a).missing.map(x => x.label), requiredStatus(data, a).missing, '页面和服务端的「还差」不一致');
+  for (const a of [full(), legacy, { ...full(), [CHG]: '不需要调整' }]) assert.deepEqual(required(data, a).missing.map((x: { label: string }) => x.label), requiredStatus(data, a).missing, '页面和服务端的「还差」不一致');
 });
 
 test('发布前检查：非选择题不能设为单选；单选题的参考标注只能有一项', () => {
