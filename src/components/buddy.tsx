@@ -202,7 +202,7 @@ function Recommend({ role }: { role: Role }) {
   const find = (id?: string) => items.find(i => i.kind === 'experience' && i.id === id && i.status === 'published');
   const main = find(role.rec.id), full = role.rec.full && main && expKind(main.data) === 'simple' ? find(role.rec.full.id) : undefined;
   return <section className="bd-panel bd-rec" aria-labelledby="bd-rec-h">
-    <h2 className="bd-h2" id="bd-rec-h">想把这种做法放进真实工作里试试？</h2>
+    <h2 className="bd-h2" id="bd-rec-h">想在模拟工作场景里试试这种做法？</h2>
     {loading ? <p className="muted small">正在找相关的岗位体验…</p> : main ? <div className="bd-rec-list">
       <RecCard item={main} why={role.rec.why} />
       {full && <RecCard item={full} why={role.rec.full!.why} />}

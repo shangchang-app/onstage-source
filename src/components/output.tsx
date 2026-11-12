@@ -16,12 +16,37 @@ export function printCard() { const h = document.documentElement; h.classList.ad
 
 const errText = (e: unknown) => e instanceof LocalError ? { text: e.message, recovery: e.recovery } : { text: '保存时出了问题：' + String((e as Error)?.message || e), recovery: '内容还在页面上。请稍后重试，或者先用「打印 / 存为 PDF」留一份。' };
 
-export function WorkCard({ title, experienceTitle, contentVersion, savedAt, sections, preview }: { title: string; experienceTitle: string; contentVersion: number; savedAt?: string; sections: WorkSection[]; preview?: boolean }) {
+/* 实践完成的统一口径（「我的」和成果页共用）：
+   - 实践完成 = 这个体验当前版本的必填作答全部写完，并且保存了成果。只看作答和成果，不看有没有浏览示范、参考等步骤。
+   - 完成时间 = 第一次保存完整成果的时间（成果只有在作答写完后才能保存）。之后再保存记为「最近修改」，旧版本在「修改记录」里。 */
+export type PracticeState = { kind: 'done' | 'ready' | 'saved-incomplete' | 'doing' | 'no-output'; work: Work | null; done: number; total: number };
+export function practiceState(answered: { done: number; total: number } | null | undefined, work: Work | null, hasOutput: boolean): PracticeState {
+  const done = answered?.done ?? 0, total = answered?.total ?? 0, complete = total > 0 && done >= total;
+  if (!hasOutput) return { kind: 'no-output', work: null, done, total };
+  return { kind: work ? (complete ? 'done' : 'saved-incomplete') : complete ? 'ready' : 'doing', work, done, total };
+}
+export const workTimes = (w: Work) => '完成于 ' + dateTime(w.createdAt) + (w.updatedAt !== w.createdAt ? ' · 最近修改 ' + dateTime(w.updatedAt) : '');
+export function practiceText(s: PracticeState) {
+  switch (s.kind) {
+    case 'done': return '已完成实践 · ' + workTimes(s.work!);
+    case 'saved-incomplete': return `成果已保存（${workTimes(s.work!)}）· 草稿里还有 ${s.total - s.done} 项没写完`;
+    case 'ready': return `作答都写好了（${s.done}/${s.total}）· 还没保存成果，保存后才算完成实践`;
+    case 'no-output': return `已作答 ${s.done}/${s.total} · 这个体验不生成成果`;
+    default: return `未完成实践 · 已作答 ${s.done}/${s.total}`;
+  }
+}
+/* 这个体验当前版本已保存的成果（本机）。读不到本地存储时当作没有。 */
+export function savedWorkFor(experienceId: string, contentVersion: number): Work | null {
+  try { return readWorks().find(w => w.experienceId === experienceId && w.contentVersion === contentVersion) || null; } catch { return null; }
+}
+
+export function WorkCard({ title, experienceTitle, contentVersion, completedAt, updatedAt, versionAt, sections, preview }: { title: string; experienceTitle: string; contentVersion: number; completedAt?: string; updatedAt?: string; versionAt?: string; sections: WorkSection[]; preview?: boolean }) {
+  const time = !completedAt ? '完成时间：保存成果时记录' : '完成时间：' + dateTime(completedAt) + (versionAt ? ' · 这一版保存于 ' + dateTime(versionAt) : updatedAt && updatedAt !== completedAt ? ' · 最近修改：' + dateTime(updatedAt) : '');
   return <article className="work-card" aria-label={title}>
     <header className="wc-head">
       <div className="tags"><span className="badge b-demo">教学模拟作品</span>{preview && <span className="badge b-gray">预览 · 尚未保存</span>}</div>
       <h2>{title}</h2>
-      <p className="small ink2">来自岗位体验「{experienceTitle}」· 任务版本：第 {contentVersion} 版 · {savedAt ? '完成时间：' + dateTime(savedAt) : '完成时间：保存时记录'}</p>
+      <p className="small ink2" data-testid="work-time">来自岗位体验「{experienceTitle}」· 任务版本：第 {contentVersion} 版 · {time}</p>
     </header>
     {sections.map(s => <section className="wc-sec" key={s.heading}><h3>{s.heading}</h3>
       {s.items.length ? s.items.map((it, i) => <div className="wc-item" key={i}><div className="xs muted">{it.label}</div><p className="pre">{it.text}</p></div>) : <p className="small muted">（这一部分还没有写）</p>}
@@ -57,7 +82,7 @@ export function OutputPanel({ id, data, g, version, answers, status, onEdit }: {
     <p className="small ink2">下面的内容全部来自你自己的作答，没有加入参考答案。想改哪部分，点那一部分的「返回修改」。</p>
     <div className="out-grid">
       <div>
-        <WorkCard title={g.output.title} experienceTitle={data.title} contentVersion={version} savedAt={saved && unchanged ? saved.updatedAt : undefined} sections={sections} preview={!saved || !unchanged} />
+        <WorkCard title={g.output.title} experienceTitle={data.title} contentVersion={version} completedAt={saved?.createdAt} updatedAt={saved && unchanged ? saved.updatedAt : undefined} sections={sections} preview={!saved || !unchanged} />
         <div className="row out-edit">{g.output.sections.map((s: any) => <button key={s.heading} type="button" className="btn btn-sm" onClick={() => onEdit(fieldPractice(s.fields[0]))}>返回修改：{s.heading}</button>)}</div>
       </div>
       <aside className="out-side">
@@ -85,13 +110,13 @@ export function WorkPage() {
   return <div className="wrap page" style={{ maxWidth: 860 }}>
     <div className="crumb print-hide"><Link href="/me">我的</Link> / 我的成果</div>
     {rev >= 0 && <p className="warn-box print-hide" style={{ marginBottom: 12 }}>你在看 {dateTime(work.revisions[rev].at)} 的旧版本。<button className="text-btn" onClick={() => setRev(-1)}>回到最新版本</button></p>}
-    <WorkCard title={work.outputTitle} experienceTitle={work.experienceTitle} contentVersion={work.contentVersion} savedAt={rev < 0 ? work.updatedAt : work.revisions[rev].at} sections={shown} />
+    <WorkCard title={work.outputTitle} experienceTitle={work.experienceTitle} contentVersion={work.contentVersion} completedAt={work.createdAt} updatedAt={rev < 0 ? work.updatedAt : undefined} versionAt={rev < 0 ? undefined : work.revisions[rev].at} sections={shown} />
     <div className="row print-hide" style={{ marginTop: 16 }}>
       <button type="button" className="btn btn-primary" onClick={() => window.print()}>打印 / 存为 PDF</button>
       <Link className="btn" href={'/experiences/' + work.experienceId + '/work'}>回到体验继续修改</Link>
       <button type="button" className="btn btn-danger" onClick={() => setAsk(true)}>删除这份成果</button>
     </div>
-    <p className="xs muted print-hide" style={{ marginTop: 8 }}>第一次保存：{dateTime(work.createdAt)} · 最近保存：{dateTime(work.updatedAt)}</p>
+    <p className="xs muted print-hide" style={{ marginTop: 8 }}>完成时间是第一次保存完整成果的时间（{dateTime(work.createdAt)}）；之后每次保存都记为最近修改（{dateTime(work.updatedAt)}），旧版本在下面的「修改记录」里。</p>
     {(work.revisions.length > 0 || work.before) && <section className="sec-card print-hide" aria-labelledby="rev-h"><h2 id="rev-h">修改记录</h2>
       {work.before && <details className="howto"><summary>看参考思路之前写的版本</summary>{work.before.map(s => <div key={s.heading}><b className="small">{s.heading}</b>{s.items.map((it, i) => <p className="small pre" key={i}><span className="muted">{it.label}：</span>{it.text}</p>)}</div>)}</details>}
       {work.revisions.length > 0 && <ul className="small" style={{ marginTop: 10 }}>{work.revisions.map((r, i) => <li key={r.at + i}><button type="button" className="text-btn" onClick={() => { setRev(i); window.scrollTo(0, 0); }}>{dateTime(r.at)} 保存的版本</button></li>)}</ul>}
@@ -127,7 +152,7 @@ export function MyWorks() {
   }
   return <>
     <section className="sec" aria-labelledby="h-works"><div className="sec-h"><div><h2 id="h-works">我的成果</h2><p>做完岗位体验后保存的作品。只在这个浏览器里。</p></div></div>
-      {works === null ? <p role="status">正在载入…</p> : works.length ? <div className="stack">{works.map(w => <div className="list-row" key={w.id}><div style={{ minWidth: 0 }}><b>{w.outputTitle}</b><div className="small muted">{w.experienceTitle} · 第 {w.contentVersion} 版 · 最近保存 {dateTime(w.updatedAt)}{w.revisions.length ? ` · ${w.revisions.length} 次修改记录` : ''}</div></div><Link className="btn" href={'/works/?id=' + w.id}>打开</Link></div>)}</div>
+      {works === null ? <p role="status">正在载入…</p> : works.length ? <div className="stack">{works.map(w => <div className="list-row" key={w.id}><div style={{ minWidth: 0 }}><b>{w.outputTitle}</b><div className="small muted">{w.experienceTitle} · 第 {w.contentVersion} 版 · {workTimes(w)}{w.revisions.length ? ` · ${w.revisions.length} 次修改记录` : ''}</div></div><Link className="btn" href={'/works/?id=' + w.id}>打开</Link></div>)}</div>
         : <div className="empty">还没有保存的成果。做完一个完整的岗位体验，在最后一步点「保存成果到本机」。</div>}
     </section>
     <section className="sec" aria-labelledby="h-backup"><div className="sec-h"><div><h2 id="h-backup">备份</h2><p>把成果和草稿导出成一个文件，换浏览器或清理数据前先导出；之后可以再导入。</p></div></div>
