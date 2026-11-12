@@ -68,7 +68,7 @@ export const deepPractice = [
     fields: [
       { id: 't.before', label: '第 1–2 周整体退货率', kind: 'text', options: [], placeholder: '', required: true, check: N(5.1, '(20 + 31) ÷ (400 + 600) = 51 ÷ 1,000 = 5.1%。') },
       { id: 't.after', label: '第 3–4 周整体退货率', kind: 'text', options: [], placeholder: '', required: true, check: N(5.1, '(40 + 52) ÷ (800 + 1,000) = 92 ÷ 1,800 ≈ 5.1%。') },
-      { id: 't.judge', label: '你的判断', kind: 'choices', options: ['退货问题变严重了', '退货率基本没变，退货变多主要是因为订单变多了', '看不出来，数据还不够'], placeholder: '', required: true,
+      { id: 't.judge', label: '你的判断', kind: 'choices', single: true, options: ['退货问题变严重了', '退货率基本没变，退货变多主要是因为订单变多了', '看不出来，数据还不够'], placeholder: '', required: true,
         check: { kind: 'choices' as const, expect: ['退货率基本没变，退货变多主要是因为订单变多了'], tol: 0, unit: '', alt: [], explain: '两段的整体退货率都是约 5.1%。退货单数多了八成，是因为订单多了八成。',
           why: { '退货问题变严重了': '只看了退货单数。按退货率算，两段几乎一样。', '看不出来，数据还不够': '要判断「包装有没有让问题变严重」，确实还缺退货原因的数据；但要回答「退货问题是不是变严重了」，现有数据已经能算出退货率没变。' } } },
       { id: 't.hypo', label: '如果你想继续查「新包装有没有问题」，写一个可验证的假设', kind: 'textarea', options: [], placeholder: '如果新包装有问题，那么应该看到……；如果看到……，说明不是包装的问题。', required: true }

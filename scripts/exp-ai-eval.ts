@@ -143,7 +143,7 @@ export const aiEval = {
         prompt: '换了用户，哪条标准的重要程度变化最大？新的排序是什么？',
         hints: ['XLOOKUP 在 Microsoft 365 里能用吗？', 'C 的那条事实错误，换了用户以后还是错的吗？'], framework: '', terms: [],
         fields: [
-          { id: 'q7.shift', label: '哪条标准的重要程度变化最大', kind: 'choices', options: ['事实准确', '适合用户的环境和水平', '语气友好'], placeholder: '', required: true,
+          { id: 'q7.shift', label: '哪条标准的重要程度变化最大', kind: 'choices', single: true, options: ['事实准确', '适合用户的环境和水平', '语气友好'], placeholder: '', required: true,
             check: tagCheck(['适合用户的环境和水平'], '换成 Microsoft 365 以后，XLOOKUP 能用了，D「不适合环境」的问题消失；熟手也更在意简洁。事实准确仍然是一票否决：C 的错误换了用户也还是错的。', {
               '事实准确': '事实准确一直是一票否决，不会因为换了用户就不重要。', '语气友好': '对熟手来说语气影响不大。' }) },
           { id: 'q7.rank', label: '新的排序和理由', kind: 'textarea', options: [], placeholder: '', required: true }
