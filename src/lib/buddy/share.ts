@@ -107,3 +107,34 @@ export async function drawCard(role: Role): Promise<HTMLCanvasElement> {
 export function toBlob(canvas: HTMLCanvasElement) {
   return new Promise<Blob>((ok, fail) => canvas.toBlob(b => b ? ok(b) : fail(new ShareError('CANVAS', '图片生成失败')), 'image/png'));
 }
+
+/* ---------- 分享给好友 ----------
+   试玩版是纯静态网页，没有服务器，也接不了微信 JS-SDK（需要服务器签名），所以：
+   - 支持系统分享的手机浏览器（iPhone Safari、安卓 Chrome 等）：用系统分享面板，优先带上分享卡图片，不支持图片就分享入口链接；
+   - 任何浏览器：可以复制「一句话 + 入口链接」，粘贴到聊天里；
+   - 微信等 App 内置浏览器：网页调不起分享面板，提示长按图片「发送给朋友」，或用右上角菜单把这个页面发给朋友。
+   分享出去的只有角色、一句话和入口链接，不带用户的作答；入口链接也不带答案。 */
+export const SHARE_TITLE = '我的隐藏工位搭子';
+export const shareText = (role: Pick<Role, 'name' | 'line'>) => `我在 on stage 的隐藏工位搭子是「${role.name}」：${role.line}\n你的是谁？`;
+/** 复制到剪贴板 / 系统分享时用的完整文字：一句话 + 入口链接（没有可用的入口链接时只有一句话） */
+export const shareMessage = (role: Pick<Role, 'name' | 'line'>) => { const u = entryUrl(); return u ? `${shareText(role)}\n${u}` : shareText(role); };
+export const inWeChat = (ua = typeof navigator === 'undefined' ? '' : navigator.userAgent) => /MicroMessenger/i.test(ua);
+/** 这个浏览器能不能调起系统分享面板（不保证能带图片，图片能不能带在分享时再判断） */
+export const canSystemShare = () => typeof navigator !== 'undefined' && typeof (navigator as any).share === 'function' && !downloadLimited();
+
+export type ShareResult = 'file' | 'link' | 'cancelled' | 'unsupported';
+/** 调起系统分享。必须在用户点击里调用。用户取消返回 cancelled；其他失败抛出原错误，由界面给出复制链接等替代办法。 */
+export async function systemShare(role: Pick<Role, 'name' | 'line'>, blob: Blob, fileName: string): Promise<ShareResult> {
+  const nav = navigator as any; if (typeof nav.share !== 'function') return 'unsupported';
+  const url = entryUrl(), text = shareText(role);
+  const file = new File([blob], fileName, { type: 'image/png' });
+  try {
+    if (typeof nav.canShare === 'function' && nav.canShare({ files: [file] })) { await nav.share({ files: [file], title: SHARE_TITLE, text: shareMessage(role) }); return 'file'; }
+    if (url) { await nav.share({ title: SHARE_TITLE, text, url }); return 'link'; }
+    return 'unsupported';
+  } catch (e) { if ((e as Error)?.name === 'AbortError') return 'cancelled'; throw e; }
+}
+/** 复制「一句话 + 入口链接」。剪贴板不可用时返回 false，界面改为显示文字让用户手动复制。 */
+export async function copyShareMessage(role: Pick<Role, 'name' | 'line'>) {
+  try { await navigator.clipboard.writeText(shareMessage(role)); return true; } catch { return false; }
+}
