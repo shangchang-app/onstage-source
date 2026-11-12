@@ -16,20 +16,21 @@ export function printCard() { const h = document.documentElement; h.classList.ad
 
 const errText = (e: unknown) => e instanceof LocalError ? { text: e.message, recovery: e.recovery } : { text: '保存时出了问题：' + String((e as Error)?.message || e), recovery: '内容还在页面上。请稍后重试，或者先用「打印 / 存为 PDF」留一份。' };
 
-/* 实践完成的统一口径（「我的」和成果页共用）：
-   - 实践完成 = 这个体验当前版本的必填作答全部写完，并且保存了成果。只看作答和成果，不看有没有浏览示范、参考等步骤。
-   - 完成时间 = 第一次保存完整成果的时间（成果只有在作答写完后才能保存）。之后再保存记为「最近修改」，旧版本在「修改记录」里。 */
-export type PracticeState = { kind: 'done' | 'ready' | 'saved-incomplete' | 'doing' | 'no-output'; work: Work | null; done: number; total: number };
+/* 实践完成的统一口径（「我的」、体验详情页、作答页、成果页共用，判定条件只有一个）：
+   - 实践完成 = 这个体验当前版本保存过成果。成果只有在必填作答全部写完后才能保存，所以保存过成果就说明作答写完了。
+     只看作答和成果，不看有没有浏览示范、参考等步骤（跳过示范、只写作答并保存，也算完成）。
+   - 完成时间 = 第一次保存成果的时间，也就是成果页上的「完成时间」。之后再保存记为「最近修改」，旧版本在「修改记录」里。
+   - 保存后草稿又被改空了几项：仍算已完成（成果页仍是上次保存的版本），另外提示草稿里还有几项没写完。 */
+export type PracticeState = { kind: 'done' | 'ready' | 'doing' | 'no-output'; work: Work | null; done: number; total: number; pending: number };
 export function practiceState(answered: { done: number; total: number } | null | undefined, work: Work | null, hasOutput: boolean): PracticeState {
   const done = answered?.done ?? 0, total = answered?.total ?? 0, complete = total > 0 && done >= total;
-  if (!hasOutput) return { kind: 'no-output', work: null, done, total };
-  return { kind: work ? (complete ? 'done' : 'saved-incomplete') : complete ? 'ready' : 'doing', work, done, total };
+  if (!hasOutput) return { kind: 'no-output', work: null, done, total, pending: 0 };
+  return { kind: work ? 'done' : complete ? 'ready' : 'doing', work, done, total, pending: work && answered && !complete ? total - done : 0 };
 }
 export const workTimes = (w: Work) => '完成于 ' + dateTime(w.createdAt) + (w.updatedAt !== w.createdAt ? ' · 最近修改 ' + dateTime(w.updatedAt) : '');
 export function practiceText(s: PracticeState) {
   switch (s.kind) {
-    case 'done': return '已完成实践 · ' + workTimes(s.work!);
-    case 'saved-incomplete': return `成果已保存（${workTimes(s.work!)}）· 草稿里还有 ${s.total - s.done} 项没写完`;
+    case 'done': return '已完成实践 · ' + workTimes(s.work!) + (s.pending ? ` · 之后草稿里还有 ${s.pending} 项没写完，成果仍是上次保存的版本` : '');
     case 'ready': return `作答都写好了（${s.done}/${s.total}）· 还没保存成果，保存后才算完成实践`;
     case 'no-output': return `已作答 ${s.done}/${s.total} · 这个体验不生成成果`;
     default: return `未完成实践 · 已作答 ${s.done}/${s.total}`;

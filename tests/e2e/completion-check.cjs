@@ -61,16 +61,24 @@ const FORBIDDEN = ['真实求助', '真实岗位场景', '放进真实工作', '
     await p.goto(SITE + '/works/?id=' + work.id, { waitUntil: 'networkidle' });
     const wt = await workTime(p); ok(wt.includes('完成时间：' + m[1]), `成果页完成时间和「我的」不一致：我的 ${m[1]}；成果页 ${wt}`);
     await p.locator('.work-card header').screenshot({ path: path.join(SHOTS, 'c02-手机-成果页完成时间.png') });
+    // 体验详情页：同一口径、同一完成时间；不再显示「继续体验」和「已浏览 x / 6 步」
+    await p.goto(SITE + '/experiences/overseas-growth/', { waitUntil: 'networkidle' });
+    const ds = p.locator('[data-testid=detail-practice-state]'); await ds.waitFor();
+    const dt = (await ds.innerText()).trim(); ok(dt === '已完成实践 · 完成于 ' + m[1], '详情页完成状态和「我的」不一致：' + dt);
+    const side = (await p.locator('main').innerText()).replace(/\s+/g, ' ');
+    ok(!/已浏览 \d+ \/ \d+ 步/.test(side) && !side.includes('继续体验 →'), '已完成后详情页仍显示浏览进度或「继续体验」');
+    ok(((await p.locator('main a', { hasText: '查看成果' }).first().getAttribute('href')) || '').endsWith('/works/?id=' + work.id), '详情页「查看成果」链接不对');
+    await ds.locator('xpath=ancestor::aside[1]').screenshot({ path: path.join(SHOTS, 'c03-手机-详情页已完成.png') }).catch(() => ds.screenshot({ path: path.join(SHOTS, 'c03-手机-详情页已完成.png') }));
     ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
   });
 
-  await check('保存后改动：草稿少写一项时显示「成果已保存、还有 1 项没写完」；补完再保存，完成时间不变，另记最近修改', async () => {
+  await check('保存后改动：草稿少写一项时仍是已完成实践（成果页仍有完成时间），另提示草稿还有 1 项没写完；补完再保存，完成时间不变，另记最近修改', async () => {
     const { c, p } = await ctx(); await p.goto(GW, { waitUntil: 'networkidle' });
     await fillAll(p); await step(p, 6); await p.locator('[data-testid=save-work]').click(); await p.waitForSelector('.out-side .ok-box');
     const first = await p.evaluate(() => JSON.parse(localStorage.getItem('onstage-works:v1')).works[0]);
     await step(p, 4); await p.fill('#f-g6-missing', ''); await waitSaved(p);
     let t = (await (await meRow(p)).innerText()).replace(/\s+/g, ' ');
-    ok(t.includes('成果已保存') && t.includes('还有 1 项没写完') && !t.includes('已完成实践 ·'), '保存后又删掉一项时状态不对：' + t);
+    ok(t.includes('已完成实践 · 完成于') && t.includes('之后草稿里还有 1 项没写完，成果仍是上次保存的版本') && !t.includes('未完成实践'), '保存后又删掉一项时状态不对：' + t);
     await p.waitForTimeout(1100);
     await p.goto(GW, { waitUntil: 'networkidle' }); await step(p, 4); await p.fill('#f-g6-missing', '补上：能接受的价格'); await waitSaved(p);
     await step(p, 6); await p.locator('[data-testid=save-work]').click(); await p.waitForSelector('.out-side .ok-box');
@@ -92,6 +100,8 @@ const FORBIDDEN = ['真实求助', '真实岗位场景', '放进真实工作', '
     const area = p.locator('main textarea').first(); await area.fill('先看差评内容和订单信息。'); await p.waitForTimeout(1500);
     await p.goto(SITE + '/me/', { waitUntil: 'networkidle' }); const r = p.locator('[data-testid="draft-yc-quick"]'); await r.waitFor();
     const t = (await r.innerText()).replace(/\s+/g, ' '); ok(t.includes('这个体验不生成成果') && !t.includes('完成实践'), '简版练习的状态不对：' + t);
+    await p.goto(SITE + '/experiences/yc-quick/work/', { waitUntil: 'networkidle' });
+    const tr = await p.locator('.track').innerText(); ok(!tr.includes('完成实践'), '简版练习页的进度不应再说「已完成 / 未完成实践」（它不生成成果；完成记录要登录后保存）：' + tr);
     ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
   });
 

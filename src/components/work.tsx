@@ -511,7 +511,8 @@ function SimpleTasks({ data, answers, set, readonly, heading, refViewed, onViewR
       <li className="on">已浏览</li>
       <li className={refViewed ? 'on' : ''}>{refViewed ? '已看参考思路' : '未看参考思路'}</li>
       <li className={status.done === status.total ? 'on' : status.done ? 'part' : ''}>已作答 {status.done}/{status.total}</li>
-      <li className={done ? 'on' : ''}>{done ? '已完成实践' : '未完成实践'}</li>
+      {/* 简版练习不生成成果，没有「完成实践」（与「我的」同一口径）；这里只在登录后保存过完成记录时说明 */}
+      {done && <li className="on">已保存完成记录</li>}
     </ul>
     {data.scene && <section className="sec-card"><h2>情境</h2><p className="pre">{data.scene}</p></section>}
     {data.tasks.map((t: any, i: number) => {

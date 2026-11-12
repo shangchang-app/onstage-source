@@ -13,10 +13,13 @@ import { dateTime } from '../src/components/ui';
 const work = (createdAt: string, updatedAt = createdAt): Work => ({ id: 'w1', label: '教学模拟作品', experienceId: 'overseas-growth', experienceTitle: 't', direction: 'd', outputTitle: 'o', contentVersion: 1, createdAt, updatedAt, sections: [], before: null, revisions: [] });
 const T1 = '2026-11-12T08:00:00.000Z', T2 = '2026-11-12T09:30:00.000Z';
 
-test('实践完成：必填作答写完并保存了成果才算完成；不看浏览过哪些步骤（这里根本不传步骤）', () => {
+test('实践完成：保存过成果（只有作答写完才能保存）就算完成；不看浏览过哪些步骤（这里根本不传步骤）', () => {
   assert.equal(practiceState({ done: 16, total: 16 }, work(T1), true).kind, 'done');
   assert.equal(practiceState({ done: 16, total: 16 }, null, true).kind, 'ready');
-  assert.equal(practiceState({ done: 15, total: 16 }, work(T1), true).kind, 'saved-incomplete');
+  const later = practiceState({ done: 15, total: 16 }, work(T1), true);
+  assert.equal(later.kind, 'done', '保存后草稿又改空一项：成果页仍有完成时间，所以仍算已完成');
+  assert.equal(later.pending, 1);
+  assert.equal(practiceState(null, work(T1), true).kind, 'done', '只有成果、读不到草稿（例如体验详情页）时同样算已完成');
   assert.equal(practiceState({ done: 3, total: 16 }, null, true).kind, 'doing');
   assert.equal(practiceState({ done: 0, total: 0 }, null, true).kind, 'doing', '没有题目时不能算完成');
   assert.equal(practiceState({ done: 5, total: 5 }, null, false).kind, 'no-output', '不生成成果的体验不显示完成实践');
@@ -29,7 +32,8 @@ test('完成时间：用第一次保存完整成果的时间；之后再保存�
   const done = practiceText(practiceState({ done: 16, total: 16 }, work(T1, T2), true));
   assert.ok(done.startsWith('已完成实践 · 完成于 ' + dateTime(T1)), done);
   assert.ok(!practiceText(practiceState({ done: 16, total: 16 }, null, true)).includes('已完成'), '没保存成果时不能说已完成');
-  assert.match(practiceText(practiceState({ done: 15, total: 16 }, work(T1), true)), /成果已保存.*还有 1 项没写完/);
+  assert.equal(practiceText(practiceState({ done: 15, total: 16 }, work(T1), true)), '已完成实践 · 完成于 ' + dateTime(T1) + ' · 之后草稿里还有 1 项没写完，成果仍是上次保存的版本');
+  assert.equal(practiceText(practiceState(null, work(T1, T2), true)), '已完成实践 · 完成于 ' + dateTime(T1) + ' · 最近修改 ' + dateTime(T2), '体验详情页和「我的」用同一句话');
   assert.equal(practiceText(practiceState({ done: 3, total: 16 }, null, true)), '未完成实践 · 已作答 3/16');
 });
 
