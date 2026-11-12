@@ -4,10 +4,11 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, useSession } from './session';
 import { Modal } from './modal';
-import { AnswerList, ErrorBox, Grid, Loading, Material, QUICK_STEPS, STEPS, Terms, dateTime, guestSaveNote, useCatalog } from './ui';
+import { AnswerList, ErrorBox, Grid, Loading, Material, QUICK_STEPS, STEPS, Terms, dateTime, guestSaveNote, hasRealSources, useCatalog } from './ui';
 import { QuickWork } from './quick';
 import { OutputPanel } from './output';
 import { checkChoices, checkNumber } from '@/lib/rule-check';
+import { choiceIssue, fieldDone, missingLabel } from '@/server/validation';
 
 type Answers = Record<string, string | string[]>;
 type Progress = { step: number; visited: number[]; referenceViewed: boolean; hintsOpened: string[] };
@@ -19,15 +20,14 @@ const RETRYABLE = (e: unknown) => e instanceof ApiError && (e.code === 'NETWORK'
 
 /* 材料说明按内容写：有真实来源的体验不能笼统说「都是虚构的」。真实来源（含据公开资料改编的内容）在详情页的「资料来源」里单独标注。 */
 export function materialNote(data: any) {
-  return (data?.guide?.provenance || []).some((p: any) => p.kind === 'public' || p.kind === 'adapted') ? '本体验包含教学模拟材料，真实来源已单独标注。' : '本体验的材料是教学模拟的，只用于这次体验。';
+  return hasRealSources(data?.guide?.provenance) ? '本体验包含教学模拟材料，真实来源已单独标注。' : '本体验的材料是教学模拟的，只用于这次体验。';
 }
 
 /* 与服务端 requiredStatus 相同的规则：只用于显示，提交时以服务端为准。 */
 export function required(data: any, answers: Answers) {
   if (data.format === 'guided' && data.guide) {
     const fields = data.guide.practice.flatMap((p: any) => p.fields.map((f: any) => ({ ...f, practice: p.id }))).filter((f: any) => f.required !== false);
-    const ok = (f: any) => { const v = answers[f.id]; return f.kind === 'choices' ? Array.isArray(v) && v.length > 0 && v.every(x => f.options.includes(x)) : typeof v === 'string' && v.trim().length >= 2; };
-    const missing: { label: string; practice: string; field?: string }[] = fields.filter((f: any) => !ok(f)).map((f: any) => ({ label: f.label, practice: f.practice, field: f.id }));
+    const missing: { label: string; practice: string; field?: string }[] = fields.filter((f: any) => !fieldDone(f, answers[f.id])).map((f: any) => ({ label: missingLabel(f, answers[f.id]), practice: f.practice, field: f.id }));
     let total = fields.length;
     if (data.guide.quick) { // 与服务端 QUICK_ACTION_LABEL 规则一致：选一项建议行动，或写自己的方案
       total++; const a = answers['plan.actions'], own = answers['plan.own'];
@@ -231,7 +231,9 @@ export function Work({ id }: { id: string }) {
     if (i === 3) return status.done === status.total ? ['done', '已作答 ' + status.done + '/' + status.total] : status.done > 0 ? ['part', '已作答 ' + status.done + '/' + status.total] : [seen ? 'part' : '', seen ? '已浏览 · 未作答' : '未开始'];
     return progress.visited.includes(i) || i === step ? ['done', '已浏览'] : ['', '未看'];
   };
-  const matList: any[] = quick ? [] : guided ? (step >= 2 && step <= 4 ? g.brief.materials : []) : (data.scene ? [{ id: 'scene', title: '情境', kind: 'text', text: data.scene }] : []);
+  /* 第 6 步（迁移练习）的材料抽屉：先放这一题自己的新材料（条件变化、补充数据），再放原任务材料（提示里会提到）。 */
+  const transferMats: any[] = guided ? g.practice.filter((p: any) => p.when === 'transfer' && p.material).map((p: any) => ({ id: 'tr-' + p.id, title: p.title + '：这一题的新材料', kind: 'text', text: p.material })) : [];
+  const matList: any[] = quick ? [] : guided ? (step >= 2 && step <= 4 ? g.brief.materials : step === 5 && transferMats.length ? [...transferMats, ...g.brief.materials.map((m: any) => ({ ...m, title: '原任务' + m.title }))] : []) : (data.scene ? [{ id: 'scene', title: '情境', kind: 'text', text: data.scene }] : []);
   const relatedJobs = items.filter(i => i.kind === 'job' && i.status === 'published' && (g?.related.jobs || []).includes(i.id));
   const relatedExps = items.filter(i => i.kind === 'experience' && (g?.related.experiences || []).includes(i.id));
 
@@ -374,7 +376,7 @@ export function PracticeStep({ g, answers, set, readonly, opened, openHint, open
       : <section className="sec-card transfer-intro"><h2>迁移练习：换一组材料，再用一次刚学的方法</h2><p className="small ink2">这组材料和示范、正式任务都不一样。做完才算完成这个体验。数字和标签会做规则检查，你写的文字不会被自动评价。</p></section>}
     {list.map((p: any, idx: number) => {
       const shown = p.hints.filter((_: string, i: number) => opened.includes(p.id + ':' + i)).length;
-      const filled = p.fields.filter((f: any) => filledField(answers[f.id])).length;
+      const filled = p.fields.filter((f: any) => f.kind === 'choices' && f.single ? !choiceIssue(f, answers[f.id]) : filledField(answers[f.id])).length;
       return <section className="practice" key={p.id} id={'pr-' + p.id} aria-labelledby={'h-' + p.id}>
         <div className="practice-h"><h2 id={'h-' + p.id}>{idx + 1}. {p.title}</h2><span className="row" style={{ gap: 6 }}><button type="button" className="btn btn-sm only-narrow" onClick={openMats}>查看材料</button><span className={'badge ' + (filled === p.fields.length ? 'b-green' : filled ? 'b-warn' : 'b-gray')}>{filled === p.fields.length ? '已作答' : filled ? '写了一部分' : '未作答'}</span></span></div>
         {p.material && <div className="task-mat pre" role="note"><span className="xs muted">这一题的材料</span>{'\n'}{p.material}</div>}
@@ -425,6 +427,15 @@ function RuleCheck({ f, value, shown, show }: { f: any; value: any; shown: boole
   </div>;
 }
 function FieldInput({ f, id, value, set, readonly }: { f: any; id: string; value: any; set: (k: string, v: string | string[]) => void; readonly: boolean }) {
+  if (f.kind === 'choices' && f.single) {
+    /* 单选题。旧草稿里如果选了多项、或选项已不在题目里：不替用户选，也不静默删掉，提示重新确认；
+       重新选之前原来的作答留在草稿里（不能保存成果、不能完成）。 */
+    const issue = choiceIssue(f, value); const legacy = issue && issue.kind !== 'empty' ? issue : null;
+    const cur = !legacy && Array.isArray(value) ? value[0] : '';
+    return <fieldset id={id} className="field" style={{ border: 0, padding: 0, margin: 0 }}><legend className="label">{f.label}{!f.label.includes('选') && <span className="muted">（单选）</span>}</legend>
+      {legacy && <p className="warn-box" role="alert" data-testid={'legacy-' + f.id} style={{ margin: '0 0 10px' }}><b>请重新确认这一题。</b>{legacy.kind === 'multi' ? `你之前的作答里这一题选了 ${legacy.picked.length} 项：${legacy.picked.join('、')}。这一题只能选一项，请在下面重新选择。` : `你之前的选择「${legacy.picked.join('、')}」已不在选项里，请在下面重新选择。`}重新选择之前，原来的作答还保留在草稿里，但不能保存成果。</p>}
+      <div className="choice-list">{f.options.map((o: string) => <label className="choice" key={o}><input type="radio" name={id} value={o} disabled={readonly} checked={cur === o} onChange={() => set(f.id, [o])} /><span>{o}</span></label>)}</div></fieldset>;
+  }
   if (f.kind === 'choices') {
     const v: string[] = Array.isArray(value) ? value : [];
     return <fieldset id={id} className="field" style={{ border: 0, padding: 0, margin: 0 }}><legend className="label">{f.label}{!f.label.includes('选') && <span className="muted">（可多选）</span>}</legend>

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useSession } from './session';
 import { Modal } from './modal';
-import { Demo, ErrorBox, Grid, KindBadge, Loading, SOURCE_LABEL, STEPS, StatusBadge, date, daysLeft, expKind, guestSaveNote, routes, stepsFor, useCatalog, type Item } from './ui';
+import { Demo, ErrorBox, Grid, KindBadge, Loading, SOURCE_LABEL, STEPS, hasRealSources, StatusBadge, date, daysLeft, expKind, guestSaveNote, routes, stepsFor, useCatalog, type Item } from './ui';
 import { SAMPLE_OUTPUTS, SAMPLE_PLAN, SAMPLE_REVIEW } from '@/lib/samples';
 import { FunEntry } from './fun-entry';
 
@@ -190,7 +190,7 @@ function ExperienceDetail({ item, items, preview }: { item: Item; items: Item[];
       <div className="eyebrow" style={{ marginTop: 12 }}>{d.direction}</div>
       <h1 style={{ fontSize: 'clamp(26px,3.6vw,36px)', fontWeight: 900, marginTop: 2 }}>{d.title}</h1>
       <p className="lede">{d.about}</p>
-      <p className="warn-box" style={{ marginTop: 16 }}><b>开始前请知道：</b>这是线上模拟的工作场景，情境、数据和回答样例都是虚构的教学内容。做完不会得到分数或标签，也不是实习经历、能力认证或录用保证，更不是任何岗位的投递门槛。</p>
+      <p className="warn-box" style={{ marginTop: 16 }}><b>开始前请知道：</b>{hasRealSources(gs.provenance) ? '这是线上模拟的工作场景。情境、数据和回答样例是教学模拟内容；其中引用的少量真实信息，已在下面「内容来源与审核」里逐条标注。' : '这是线上模拟的工作场景，情境、数据和回答样例都是虚构的教学内容。'}做完不会得到分数或标签，也不是实习经历、能力认证或录用保证，更不是任何岗位的投递门槛。</p>
       {quick ? <section className="block" style={{ marginTop: 20 }}><h2>流程（约 {d.minutes} 分钟，不计时，可以随时暂停）</h2>
         <ol className="flow">{[['收到任务', '负责人在群里发来的一条消息'], ['看材料', '4 份短材料，自己决定看哪些、哪些是关键'], ['行动与理由', '组合下周的行动，或写自己的方案；一两句理由；还缺什么信息'], ['复盘', '根据你的选择：哪里合理、漏了什么、要权衡什么、怎么验证；再对照参考思路']].map(([a, b]) => <li key={a}><span><b>{a}</b>　{b}</span></li>)}</ol>
         {deep && <p className="small" style={{ marginTop: 12 }}>想做得更深？同一情境的 <Link href={'/experiences/' + deep.id}>{deep.data.title}</Link>（约 {deep.data.minutes} 分钟）。</p>}

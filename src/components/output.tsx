@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Modal } from './modal';
 import { LocalError, buildSections, deleteWork, exportBackup, getWork, hasBefore, importBackup, readWorks, requestPersist, sameSections, saveWork, type Work, type WorkSection } from '@/lib/local-data';
 import { dateTime } from './ui';
+import { choiceIssue } from '@/server/validation';
 
 export const SAVE_SCOPE = '只保存在这台设备的这个浏览器里：没有上传，不会公开，也不会发给任何企业。换设备、换浏览器、清除浏览器数据或用无痕模式都看不到。建议在「我的」里导出备份。';
 export const DRAFT_VS_WORK = '草稿和成果分开保存：清除草稿不会删除已保存的成果。部分浏览器（例如 iPhone 上的 Safari）会清理 7 天没有访问的网站数据，草稿和成果都可能受影响，所以请导出备份。';
@@ -40,6 +41,9 @@ export function OutputPanel({ id, data, g, version, answers, status, onEdit }: {
   const unchanged = saved && sameSections(saved.sections, sections);
   async function save() {
     setMsg(null);
+    /* 保存入口再查一次：必填项要写完，单选题只能选一项（旧草稿里的多选要先重新确认）。 */
+    const singles = g.practice.flatMap((p: any) => p.fields).filter((f: any) => f.kind === 'choices' && f.single && f.required !== false && choiceIssue(f, answers[f.id]));
+    if (status.missing.length || singles.length) { setMsg({ text: '还不能保存：' + (singles.length ? singles.map((f: any) => '「' + f.label + '」需要只选一项').join('、') : '还有 ' + status.missing.length + ' 项没写完') + '。', bad: true }); return; }
     try {
       const r = saveWork({ experienceId: id, experienceTitle: data.title, direction: data.direction, outputTitle: g.output.title, contentVersion: version, sections, before: before && !sameSections(before, sections) ? before : null });
       setSaved(r.work);
