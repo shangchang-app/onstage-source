@@ -17,12 +17,17 @@ const EMPTY_P: Progress = { step: 0, visited: [], referenceViewed: false, hintsO
 const EMPTY_R: Reflection = { understand: '', likes: [], dislikes: '', next: [] };
 const RETRYABLE = (e: unknown) => e instanceof ApiError && (e.code === 'NETWORK' || e.status >= 500 || e.status === 429);
 
+/* 材料说明按内容写：有真实来源的体验不能笼统说「都是虚构的」。真实来源（含据公开资料改编的内容）在详情页的「资料来源」里单独标注。 */
+export function materialNote(data: any) {
+  return (data?.guide?.provenance || []).some((p: any) => p.kind === 'public' || p.kind === 'adapted') ? '本体验包含教学模拟材料，真实来源已单独标注。' : '本体验的材料是教学模拟的，只用于这次体验。';
+}
+
 /* 与服务端 requiredStatus 相同的规则：只用于显示，提交时以服务端为准。 */
 export function required(data: any, answers: Answers) {
   if (data.format === 'guided' && data.guide) {
     const fields = data.guide.practice.flatMap((p: any) => p.fields.map((f: any) => ({ ...f, practice: p.id }))).filter((f: any) => f.required !== false);
     const ok = (f: any) => { const v = answers[f.id]; return f.kind === 'choices' ? Array.isArray(v) && v.length > 0 && v.every(x => f.options.includes(x)) : typeof v === 'string' && v.trim().length >= 2; };
-    const missing = fields.filter((f: any) => !ok(f)).map((f: any) => ({ label: f.label, practice: f.practice }));
+    const missing: { label: string; practice: string; field?: string }[] = fields.filter((f: any) => !ok(f)).map((f: any) => ({ label: f.label, practice: f.practice, field: f.id }));
     let total = fields.length;
     if (data.guide.quick) { // 与服务端 QUICK_ACTION_LABEL 规则一致：选一项建议行动，或写自己的方案
       total++; const a = answers['plan.actions'], own = answers['plan.own'];
@@ -58,7 +63,7 @@ export function Work({ id }: { id: string }) {
   const lastField = useRef<HTMLElement | null>(null);
   const rev = useRef(0), dirty = useRef(false), inflight = useRef(false), timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined), attempt = useRef(0), frozen = useRef(false);
   const latest = useRef({ answers, progress, reflection }); latest.current = { answers, progress, reflection };
-  const heading = useRef<HTMLHeadingElement>(null), [focusTick, setFocusTick] = useState(0);
+  const heading = useRef<HTMLHeadingElement>(null), [focusTick, setFocusTick] = useState(0), focusField = useRef<string | null>(null);
   const owner = session?.identity.owner;
   const backup = useBackup(owner && guide && !guide.unavailable ? `onstage:backup:${owner}:${id}` : null);
   const loaded = useRef('');
@@ -163,7 +168,14 @@ export function Work({ id }: { id: string }) {
     window.scrollTo({ top: 0, behavior: 'auto' }); setFocusTick(t => t + 1);
   };
   /* 换步骤后，等新步骤渲染完成再把焦点移到标题（不用定时器，避免在慢设备上焦点落到已移除的旧标题）。 */
-  useEffect(() => { if (focusTick) heading.current?.focus(); }, [focusTick]);
+  useEffect(() => {
+    if (!focusTick) return;
+    const fid = focusField.current; focusField.current = null;
+    const el = fid ? document.getElementById('f-' + fid.replace(/\./g, '-')) : null;
+    // 从「还差」跳过来时：定位并聚焦那一项（选项组聚焦第一个选项）；否则聚焦步骤标题
+    const target = el ? (el.tagName === 'FIELDSET' ? el.querySelector<HTMLElement>('input') : el) : null;
+    if (target) { el!.scrollIntoView({ block: 'center' }); target.focus({ preventScroll: true }); } else heading.current?.focus();
+  }, [focusTick]);
   // 打开页面时把当前步骤记为已浏览（不产生保存，等用户有操作再保存）。
   useEffect(() => { setProgress(p => p.visited.includes(p.step) ? p : { ...p, visited: [...p.visited, p.step].sort() }); }, [progress.step]);
   const viewRef = () => { setProgress(p => { if (p.referenceViewed) return p; const n = { ...p, referenceViewed: true, visited: [...new Set([...p.visited, 0])] }; latest.current.progress = n; return n; }); if (!readonly) touch(); };
@@ -227,16 +239,17 @@ export function Work({ id }: { id: string }) {
             <h2 id="finish-h">完成并保存记录</h2>
             <p className="small ink2">完成记录只表示你完成了这次模拟体验，<b>不代表实习经历或职业资格</b>，也不会发给任何企业。</p>
             <p className="small" style={{ marginTop: 8 }}>作答进度：{status.done} / {status.total} 项{status.done === status.total ? ' · 都写好了' : ''}</p>
-            {status.missing.length > 0 && <div className="notice" style={{ marginTop: 10 }}><b>还差这些没写：</b><ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>{status.missing.map((m: any) => <li key={m.label}>{guided ? <button className="text-btn" onClick={() => { go(quick ? 2 : 3); setTimeout(() => document.getElementById('pr-' + m.practice)?.scrollIntoView({ block: 'start' }), 50); }}>{m.label}</button> : m.label}</li>)}</ul><p className="xs muted" style={{ marginTop: 6 }}>只看内容、不作答，不会生成完成记录。每项至少写两个字即可，没有标准答案。</p></div>}
+            {status.missing.length > 0 && <div className="notice" style={{ marginTop: 10 }}><b>还差这些没写：</b><ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>{status.missing.map((m: any) => <li key={m.label}>{guided ? <button className="text-btn" onClick={() => quick ? go(2) : editAt(m.practice, m.field)}>{m.label}</button> : m.label}</li>)}</ul><p className="xs muted" style={{ marginTop: 6 }}>只看内容、不作答，不会生成完成记录。每项至少写两个字即可，没有标准答案。</p></div>}
             {!user && session?.loginAvailable === false ? <div className="notice" style={{ marginTop: 12 }} data-testid="trial-note"><b>{guided ? '这个体验没有成果页。' : '简版练习只有任务和参考思路，不生成成果。'}</b>你的作答会自动保存在这个浏览器里。{guestSaveNote(session.sessionDays)}</div>
               : !user ? <div className="notice" style={{ marginTop: 12 }}>保存完成记录需要登录。登录后，你在这台设备上写的作答会合并到账号里（规则见登录页）。<div style={{ marginTop: 10 }}><Link className="btn btn-primary" href={'/login?next=' + encodeURIComponent('/experiences/' + id + '/work')}>登录后保存记录</Link></div></div>
               : <div className="row" style={{ marginTop: 12 }}><button className="btn btn-primary" disabled={submitting || readonly || status.missing.length > 0} onClick={submit}>{submitting ? '正在保存…' : '完成并保存记录'}</button>{done && <span className="small muted">已完成过，再点只会打开原记录</span>}</div>}
             {submitError && <p className="err" role="alert" style={{ marginTop: 8 }}>{submitError.text}</p>}
           </section>;
-  const editAt = (practiceId: string) => {
+  const editAt = (practiceId: string, fieldId?: string) => {
     if (quick) return go(2);
+    focusField.current = fieldId || null;
     const p = g.practice.find((x: any) => x.id === practiceId); go(p?.when === 'transfer' ? 5 : 3);
-    setTimeout(() => document.getElementById('pr-' + practiceId)?.scrollIntoView({ block: 'start' }), 60);
+    if (!fieldId) setTimeout(() => document.getElementById('pr-' + practiceId)?.scrollIntoView({ block: 'start' }), 60);
   };
   const outputBlock = guided && g.output ? <OutputPanel id={id} data={data} g={g} version={guide.version} answers={answers} status={status} onEdit={editAt} /> : null;
   const finishArea = <>{outputBlock}{session?.staticTrial && outputBlock ? null : finishBlock}</>;
@@ -261,7 +274,7 @@ export function Work({ id }: { id: string }) {
       <button type="button" className="btn btn-sm" onClick={() => setMats(true)} aria-haspopup="dialog">查看材料（{matList.length}）</button>
     </div></div>}
     <Modal open={mats} title={guided ? '任务材料' : '情境材料'} variant="sheet" onClose={() => setMats(false)} returnFocus={() => lastField.current}>
-      <p className="hint">数据和评论都是虚构的。看完点「关闭」或按 Esc，会回到你刚才作答的位置，已写的内容不会丢。</p>
+      <p className="hint">{materialNote(data)}看完点「关闭」或按 Esc，会回到你刚才作答的位置，已写的内容不会丢。</p>
       {matList.map((m: any) => <Material key={m.id} m={m} />)}
     </Modal>
     <div className="wrap">
@@ -300,7 +313,7 @@ export function Work({ id }: { id: string }) {
             <div className="small"><b>约 {data.minutes} 分钟</b> · 不计时，随时可以暂停</div>
             <div className="small ink2">{user ? '作答自动保存到你的账号，可以在其他设备继续。' : session?.loginAvailable === false ? guestSaveNote(session.sessionDays) : '还没登录：作答自动保存在这个浏览器的会话里。登录后会合并到账号。'}</div>
             <div className="small ink2">作答只有你自己能看到，企业看不到。</div>
-            <p className="xs muted">模拟工作场景：店铺、数据和评论都是虚构的，不是真实商业任务，也不是实习。</p>
+            <p className="xs muted">模拟工作场景：{materialNote(data)}不是真实商业任务，也不是实习。</p>
           </div></div>
           {guided && step >= 2 && step <= 4 && <details className="panel side-mats" open={step === 3}><summary className="panel-b" style={{ cursor: 'pointer', fontWeight: 700 }}>任务材料（{g.brief.materials.length} 份）</summary><div className="panel-b" style={{ paddingTop: 0 }}>{g.brief.materials.map((m: any) => <Material key={m.id} m={m} />)}</div></details>}
           {guided && <div className="panel"><div className="panel-b"><b className="small">术语表</b><Terms names={g.glossary.map((t: any) => t.term)} glossary={g.glossary} /></div></div>}
@@ -346,7 +359,7 @@ export function BriefStep({ g }: { g: any }) {
     <p className="intro"><span className="badge b-orange">模拟工作场景</span>　像真正接到一份工作任务一样，先把情况看清楚。</p>
     <section className="sec-card"><h2>你的角色</h2><p>{b.role}</p></section>
     <section className="sec-card"><h2>现在的情况</h2><p className="pre">{b.situation}</p></section>
-    <section className="sec-card"><h2>材料</h2><p className="hint">数据和评论都是虚构的，只用于这次体验。</p>{b.materials.map((m: any) => <Material key={m.id} m={m} />)}</section>
+    <section className="sec-card"><h2>材料</h2><p className="hint">{materialNote({ guide: g })}</p>{b.materials.map((m: any) => <Material key={m.id} m={m} />)}</section>
     <section className="sec-card"><h2>要交什么</h2><ul>{b.deliverable.map((t: string) => <li key={t}>{t}</li>)}</ul>
       {b.constraints.length > 0 && <><h3>限制条件</h3><ul>{b.constraints.map((t: string) => <li key={t}>{t}</li>)}</ul></>}
       {b.help.length > 0 && <><h3>可以用的帮助</h3><ul>{b.help.map((t: string) => <li key={t}>{t}</li>)}</ul></>}</section>
@@ -414,7 +427,7 @@ function RuleCheck({ f, value, shown, show }: { f: any; value: any; shown: boole
 function FieldInput({ f, id, value, set, readonly }: { f: any; id: string; value: any; set: (k: string, v: string | string[]) => void; readonly: boolean }) {
   if (f.kind === 'choices') {
     const v: string[] = Array.isArray(value) ? value : [];
-    return <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}><legend className="label">{f.label}{!f.label.includes('选') && <span className="muted">（可多选）</span>}</legend>
+    return <fieldset id={id} className="field" style={{ border: 0, padding: 0, margin: 0 }}><legend className="label">{f.label}{!f.label.includes('选') && <span className="muted">（可多选）</span>}</legend>
       <div className="choice-list">{f.options.map((o: string) => <label className="choice" key={o}><input type="checkbox" disabled={readonly} checked={v.includes(o)} onChange={e => set(f.id, e.target.checked ? [...v, o] : v.filter(x => x !== o))} /><span>{o}</span></label>)}</div></fieldset>;
   }
   return <label className="field" htmlFor={id}><span className="label">{f.label}{f.required === false && <span className="muted">（选填）</span>}</span>

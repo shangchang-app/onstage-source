@@ -90,7 +90,7 @@ export function Catalog({ kind }: { kind: string }) {
   return <div className="wrap page">
     {(kind === 'job' || kind === 'event' || kind === 'company') && <LibSwitch cur={kind === 'job' ? 'jobs' : kind === 'company' ? 'companies' : 'events'} />}
     <div className="ph"><h1>{head[kind][0]}</h1><p className="lede">{head[kind][1]}</p></div>
-    {kind === 'experience' && <div className="notice" style={{ marginBottom: 8 }}>现在有 2 个岗位主题可以完整做完：跨境电商运营、AI 产品运营。<b>短版</b>：5–10 分钟，收到任务、看材料、给方案、看复盘（跨境电商运营）。<b>完整版</b>：6 步引导，示范学方法、独立练习、迁移练习，最后保存成果，40–50 分钟。跨境电商运营的短版和完整版是同一个情境的两种深度。<b>简版练习</b>：只有任务和参考思路，完整版本还在制作中。</div>}
+    {kind === 'experience' && <div className="notice" style={{ marginBottom: 8 }}>现在有 3 个岗位主题可以完整做完：跨境电商运营、AI 产品运营、出海增长。<b>短版</b>：5–10 分钟，收到任务、看材料、给方案、看复盘（跨境电商运营）。<b>完整版</b>：6 步引导，示范学方法、独立练习、迁移练习，最后保存成果，40–50 分钟。跨境电商运营的短版和完整版是同一个情境的两种深度。<b>简版练习</b>：只有任务和参考思路，完整版本还在制作中。</div>}
     <div className="filters">
       <label>搜索<input className="input" type="search" placeholder="名称、方向、城市" value={q} onChange={e => setQ(e.target.value)} /></label>
       {types.length > 0 && <label>类型<select className="select" value={type} onChange={e => setType(e.target.value)}><option value="">全部类型</option>{types.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>}
