@@ -164,6 +164,66 @@ const WORKS = JSON.stringify({ schema: 1, works: [OLD_WORK] });
     ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
   });
 
+  /* 其他体验里按题意改为单选的两题：AI 评测「哪条标准的重要程度变化最大」、退货完整版迁移练习「你的判断」。
+     同一套机制：单选互斥；旧草稿多选要重新确认、不预选、不删除；保存入口拦住；已保存成果原样保留。 */
+  const fillGuided = async p => { // 在第 4、6 步把必填项写完（单选题选第一项，多选题选第一项）
+    for (const n of [4, 6]) {
+      await step(p, n);
+      for (const el of await p.locator('main .practice textarea, main .practice input.input').all()) if (!(await el.inputValue())) await el.fill('5.1%');
+      for (const fs of await p.locator('main .practice fieldset').all()) if (!(await fs.locator('input:checked').count())) await fs.locator('input').first().click();
+    }
+    await p.waitForFunction(() => /已保存/.test(document.querySelector('.work-head .save-state')?.textContent || ''), null, { timeout: 15000 });
+  };
+  const draftOf = (p, eid) => p.evaluate(e => JSON.parse(localStorage.getItem('onstage-free:v1')).drafts[e].answers, eid);
+  for (const [eid, fid, label, name] of [['ai-eval', 'q7.shift', '哪条标准的重要程度变化最大', 'AI 评测'], ['ops-returns-deep', 't.judge', '你的判断', '退货完整版']]) {
+    const dom = '#f-' + fid.replace(/\./g, '-'), W = SITE + `/experiences/${eid}/work/`;
+    await check(`${name}「${label}」：单选互斥；旧草稿多选提示重新确认、不预选不删除；保存入口拦住；已保存成果保留；重新选一项后可保存`, async () => {
+      const { c, p } = await ctx(mobile); await p.goto(W, { waitUntil: 'networkidle' });
+      await fillGuided(p); await step(p, 6);
+      const r = p.locator(dom + ' input');
+      ok((await r.evaluateAll(l => l.map(i => i.type))).every(t => t === 'radio') && await r.count() >= 2, '不是单选控件');
+      ok((await p.locator(dom + ' legend').innerText()).includes('单选'), '题目没有标「单选」');
+      await r.nth(0).click(); await r.nth(1).click(); await p.waitForTimeout(1200);
+      ok(await p.locator(dom + ' input:checked').count() === 1, '可以同时选中两项');
+      const picked = await r.nth(1).getAttribute('value'), opt0 = await r.nth(0).getAttribute('value');
+      ok(JSON.stringify((await draftOf(p, eid))[fid]) === JSON.stringify([picked]), '草稿里存的不是唯一一项');
+      await shot(p, p.locator(dom), `s07-手机-${name}-单选`);
+      // 保存一份成果
+      ok(await p.locator('[data-testid=save-work]').count() === 1, '作答写完后不能保存');
+      await p.locator('[data-testid=save-work]').click(); await p.waitForSelector('.out-side .ok-box');
+      const works = await p.evaluate(() => localStorage.getItem('onstage-works:v1')); const wid = JSON.parse(works).works.find(w => w.experienceId === eid).id;
+      // 模拟旧草稿：这一题存了两项
+      await p.evaluate(([e, f, v]) => { const db = JSON.parse(localStorage.getItem('onstage-free:v1')); db.drafts[e].answers[f] = v; localStorage.setItem('onstage-free:v1', JSON.stringify(db)); }, [eid, fid, [opt0, picked]]);
+      await p.goto(W, { waitUntil: 'networkidle' }); await step(p, 6);
+      const warn = p.locator(`[data-testid="legacy-${fid}"]`); await warn.waitFor();
+      const wt = await warn.innerText(); ok(wt.includes('选了 2 项') && wt.includes(opt0) && wt.includes(picked), '旧多选提示没有列出原来的选择：' + wt);
+      ok(await p.locator(dom + ' input:checked').count() === 0, '旧多选时不应替用户预选');
+      await shot(p, p.locator(dom), `s08-手机-${name}-旧草稿多选提示`);
+      await p.waitForTimeout(1500);
+      ok(JSON.stringify((await draftOf(p, eid))[fid]) === JSON.stringify([opt0, picked]), '用户确认前旧作答被改动了');
+      ok(await p.locator('[data-testid=save-work]').count() === 0, '旧多选时还能保存成果');
+      const side = await p.locator('.out-side').innerText(); ok(side.includes(`${label}：选了 2 项，只能选一项，请重新确认`), '保存区没有说明原因：' + side.replace(/\s+/g, ' ').slice(0, 200));
+      ok(await p.evaluate(() => localStorage.getItem('onstage-works:v1')) === works, '用户没点保存，已保存的成果就被改动了');
+      await p.locator(dom + ' input').nth(1).click(); await p.waitForTimeout(1200);
+      ok(await warn.count() === 0 && JSON.stringify((await draftOf(p, eid))[fid]) === JSON.stringify([picked]), '重新选择后提示没消失或草稿不对');
+      ok(await p.locator('[data-testid=save-work]').count() === 1, '重新选一项后还是不能保存');
+      await p.goto(SITE + '/works/?id=' + wid, { waitUntil: 'networkidle' });
+      ok((await p.locator('main').innerText()).includes(picked), '已保存成果的内容不对');
+      ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
+    });
+  }
+
+  await check('其他选择题按题意保持多选：AI 评测回答 A–D 的问题标签（A、C 的参考标注只有一项也仍可多选）、退货完整版「可能的原因」、退货短版「下周先做什么」', async () => {
+    const { c, p } = await ctx(); await p.goto(SITE + '/experiences/ai-eval/work/', { waitUntil: 'networkidle' }); await step(p, 4);
+    for (const id of ['f-a-tags', 'f-c-tags']) {
+      const ip = p.locator(`#${id} input`); ok((await ip.evaluateAll(l => l.map(i => i.type))).every(t => t === 'checkbox'), id + ' 被改成了单选');
+      await ip.nth(0).click(); await ip.nth(1).click(); ok(await p.locator(`#${id} input:checked`).count() === 2, id + ' 不能多选');
+    }
+    await p.goto(SITE + '/experiences/ops-returns-deep/work/', { waitUntil: 'networkidle' }); await step(p, 4);
+    ok((await p.locator('#f-p4-causes input').evaluateAll(l => l.map(i => i.type))).every(t => t === 'checkbox'), '「可能的原因」被改成了单选');
+    ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
+  });
+
   await b.close(); server.close();
   fs.writeFileSync(path.join(OUT, 'results.json'), JSON.stringify(results, null, 2));
   const passed = results.filter(r => r.pass).length; console.log(`\n${passed}/${results.length} 通过`);

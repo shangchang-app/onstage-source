@@ -32,9 +32,42 @@ test('出海增长：「选一类 / 选一项」两题是单选；标注「可�
   checkGuide(data);
 });
 
-test('其他体验的选择题没有被改成单选', () => {
-  const ai = contentSchema.parse(aiEval);
-  for (const f of ai.guide!.practice.flatMap(p => p.fields)) assert.equal(f.single, false, 'ai-eval ' + f.id);
+/* 全站选择题按题意区分单选和多选（不按参考标注有几项自动判断）。 */
+const SINGLE: Record<string, string[]> = { 'overseas-growth': ['g1.segment', 'g7.change'], 'ai-eval': ['q7.shift'], 'ops-returns-deep': ['t.judge'] };
+const allGuided = () => { const s = new Store(join(mkdtempSync(join(tmpdir(), 'single-all-')), 'x.sqlite')); seed(s);
+  const rows = s.all<{ id: string; data: string }>("SELECT id, data FROM content WHERE kind = 'experience'"); s.db.close();
+  return rows.map(r => ({ id: r.id, data: contentSchema.parse(JSON.parse(r.data)) })).filter(r => r.data.format === 'guided' && r.data.guide); };
+
+test('全站选择题：按题意只有 4 题是单选（选一类 / 选一项 / 变化最大 / 你的判断），其余保持多选', () => {
+  const found: Record<string, string[]> = {}; let multi = 0;
+  for (const { id, data: d } of allGuided()) {
+    checkGuide(d);
+    for (const f of d.guide!.practice.flatMap(p => p.fields).filter(f => f.kind === 'choices')) {
+      if (f.single) (found[id] ||= []).push(f.id); else multi++;
+      if (/可多选|可以选多项|可以多选/.test(f.label)) assert.equal(f.single, false, `${id} ${f.id} 题目写着可多选`);
+    }
+  }
+  assert.deepEqual(found, SINGLE); assert.ok(multi >= 10, '多选题数量不对：' + multi);
+});
+
+test('不按参考标注数量自动改单选：AI 评测回答 A、C 的参考标注只有一项，题目允许多选，仍是多选', () => {
+  const ai = contentSchema.parse(aiEval); const fs = ai.guide!.practice.flatMap(p => p.fields);
+  for (const id of ['a.tags', 'c.tags']) { const f = fs.find(x => x.id === id)!; assert.equal(f.check?.expect.length, 1); assert.equal(f.single, false, id); }
+  const pr = (id: string) => ai.guide!.practice.find(p => p.id === id)!.prompt;
+  assert.match(pr('q3'), /可以多选/); assert.match(pr('q4'), /^同样/, '回答 C、D 沿用「可以多选」');
+});
+
+test('新改为单选的两题：旧草稿多选、失效选项都列在「还差」里；页面和服务端规则一致；草稿不被改动', () => {
+  for (const { id, data: d } of allGuided().filter(r => r.id === 'ai-eval' || r.id === 'ops-returns-deep')) {
+    const fs = d.guide!.practice.flatMap(p => p.fields); const fid = SINGLE[id][0]; const f = fs.find(x => x.id === fid)!;
+    const okA: Answers = {}; for (const x of fs) okA[x.id] = x.kind === 'choices' ? (x.single ? [x.options[0]] : [x.options[0], x.options[1]]) : '我自己的写法';
+    assert.equal(requiredStatus(d, okA).missing.length, 0, id + ' 合法作答应全部完成');
+    const legacy = { ...okA, [fid]: [f.options[0], f.options[1]] }; const before = JSON.stringify(legacy);
+    assert.deepEqual(requiredStatus(d, legacy).missing, [`${f.label}：选了 2 项，只能选一项，请重新确认`], id);
+    assert.deepEqual(required(d, legacy).missing.map((m: { label: string; field?: string }) => [m.label, m.field]), [[`${f.label}：选了 2 项，只能选一项，请重新确认`, fid]], id + ' 页面规则');
+    assert.deepEqual(requiredStatus(d, { ...okA, [fid]: ['已删掉的旧选项'] }).missing, [`${f.label}：之前的选择已不在选项里，请重新选择`], id);
+    assert.equal(JSON.stringify(legacy), before, '校验不能改动作答');
+  }
 });
 
 test('单选判断：恰好一项且在选项里才算完成；多项、文字、失效选项、空都不算', () => {
