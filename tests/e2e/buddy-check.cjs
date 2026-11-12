@@ -86,7 +86,7 @@ const WORKS = JSON.stringify({ schema: 1, works: [{ id: 'w-keep', title: '保留
     const ev = await p.locator('.bd-ev li b').allInnerTexts(); ok(ev.length === 2, '依据应有 2 条，实际 ' + ev.length);
     for (const e of ev) ok(r.answers.includes(e.replace(/^「|」$/g, '')), '依据不是用户选过的：' + e);
     const t = await p.locator('.bd-result').innerText();
-    for (const k of ['在这次情境中，你', '可能的取舍', '保存分享卡', '重新探索', '也看看其他方向']) ok(t.includes(k), '结果页缺少：' + k);
+    for (const k of ['在这次情境中，你', '可能的取舍', '分享给好友', '重新探索', '也看看其他方向']) ok(t.includes(k), '结果页缺少：' + k);
     ok(!/%|稀有|排名/.test(t), '结果页出现了百分比/稀有度/排名');
     const rec = p.locator('.bd-rec-card'); await rec.first().waitFor(); const hrefs = await rec.evaluateAll(l => l.map(a => a.getAttribute('href'))), kinds = await rec.evaluateAll(l => l.map(a => a.dataset.kind));
     ok(hrefs[0] === `${BASE}/experiences/${r.rec}/`, '推荐链接不对：' + hrefs[0]);
@@ -96,7 +96,7 @@ const WORKS = JSON.stringify({ schema: 1, works: [{ id: 'w-keep', title: '保留
     for (const h of hrefs) ok((await p.request.get(`http://127.0.0.1:${port}${h}`)).status() === 200, '推荐体验打不开：' + h);
     await shot(p, `10-结果-${r.id}-390`);
     // 分享卡：下载真实 PNG，检查尺寸、二维码内容
-    await p.getByRole('button', { name: '保存分享卡' }).click(); await p.waitForSelector('.bd-share-img');
+    await p.locator('.bd-actions').getByRole('button', { name: '分享给好友' }).click(); await p.waitForSelector('.bd-share-img');
     const [dl] = await Promise.all([p.waitForEvent('download'), p.getByRole('button', { name: '下载图片' }).click()]);
     const file = path.join(CARDS, `${String(P.roles.indexOf(r) + 1).padStart(2, '0')}-${r.id}.png`); await dl.saveAs(file);
     ok(dl.suggestedFilename() === `on-stage-buddy-${r.id}.png`, '文件名：' + dl.suggestedFilename());
@@ -174,7 +174,7 @@ const WORKS = JSON.stringify({ schema: 1, works: [{ id: 'w-keep', title: '保留
     const otter = P.roles.find(r => r.id === 'otter');
     const { c, p } = await ctx({ deviceScaleFactor: 1 });
     await start(p); await runPath(p, otter.answers); ok(await resultName(p) === otter.name, '结果不对');
-    await p.getByRole('button', { name: '保存分享卡' }).click(); await p.waitForSelector('.bd-share-img');
+    await p.locator('.bd-actions').getByRole('button', { name: '分享给好友' }).click(); await p.waitForSelector('.bd-share-img');
     const [dl] = await Promise.all([p.waitForEvent('download'), p.getByRole('button', { name: '下载图片' }).click()]); ok(dl.suggestedFilename() === 'on-stage-buddy-otter.png', '分享卡没下载');
     await p.getByRole('button', { name: '关闭' }).click();
     const rec = p.locator('.bd-rec-card').first(); ok((await rec.getAttribute('data-kind')) === 'deep' && (await rec.innerText()).startsWith('完整实践'), '水獭应推荐完整实践');
@@ -284,12 +284,12 @@ const WORKS = JSON.stringify({ schema: 1, works: [{ id: 'w-keep', title: '保留
     const tr = await p.locator('.bd-bar i').evaluate(e => getComputedStyle(e).transitionDuration); ok(parseFloat(tr) < 0.01, '仍有动画：' + tr); await c.close();
   });
 
-  await check('微信内置浏览器（模拟 UA）：不显示下载按钮，提示长按保存或截图；不显示假成功', async () => {
+  await check('微信内置浏览器（模拟 UA）：不显示下载按钮，提示长按图片发送给朋友或保存；不显示假成功', async () => {
     const { c, p } = await ctx({ ...mobile, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.50(0x1800322f) NetType/WIFI Language/zh_CN' });
     await start(p); await runPath(p, P.roles[1].answers); await resultName(p);
-    await p.getByRole('button', { name: '保存分享卡' }).click(); await p.waitForSelector('.bd-share-img');
+    await p.locator('.bd-actions').getByRole('button', { name: '分享给好友' }).click(); await p.waitForSelector('.bd-share-img');
     ok(await p.getByRole('button', { name: '下载图片' }).count() === 0, '微信里不应显示下载按钮');
-    const t = await p.locator('.modal').innerText(); ok(t.includes('长按图片保存') && t.includes('截图'), '缺少长按/截图提示'); ok(!/成功/.test(t), '不应显示成功');
+    const t = await p.locator('.modal').innerText(); ok(t.includes('长按上面的图片') && t.includes('发送给朋友') && t.includes('保存图片'), '缺少长按发送 / 保存提示'); ok(!/成功/.test(t), '不应显示成功');
     await shot(p, '06-微信UA-分享卡-390', false); await c.close();
   });
 
@@ -298,7 +298,7 @@ const WORKS = JSON.stringify({ schema: 1, works: [{ id: 'w-keep', title: '保留
     await start(p); await runPath(p, P.roles[2].answers); await resultName(p);
     // 被拦截的图标请求是异步失败的：结果标题出现时，图片的 error 事件可能还没触发，所以等占位块出现（最多 5 秒），不立刻计数
     ok(await p.locator('.bd-icon-miss').first().waitFor({ timeout: 5000 }).then(() => true, () => false), '没有占位块');
-    await p.getByRole('button', { name: '保存分享卡' }).click(); await p.waitForSelector('.modal [role="alert"]');
+    await p.locator('.bd-actions').getByRole('button', { name: '分享给好友' }).click(); await p.waitForSelector('.modal [role="alert"]');
     ok((await p.locator('.modal [role="alert"]').innerText()).includes('角色图标没有加载出来'), '错误提示不明确');
     ok(await p.locator('[data-testid="shot-card"]').count() === 1, '没有截图视图'); ok(await p.getByRole('button', { name: '下载图片' }).count() === 0, '失败时不应有下载按钮');
     await shot(p, '07-图标失败-截图视图-390', false);
