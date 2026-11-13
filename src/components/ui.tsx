@@ -15,6 +15,8 @@ export const QUICK_STEPS = ['收到任务', '看材料', '行动与理由', '复
 export const expKind = (d: any): 'quick' | 'deep' | 'simple' => d.format !== 'guided' ? 'simple' : (d.guide?.quick || d.guideSummary?.quick) ? 'quick' : 'deep';
 export const stepsFor = (d: any) => expKind(d) === 'quick' ? QUICK_STEPS : STEPS;
 export const SOURCE_LABEL: Record<string, string> = { sim: '模拟教学数据', adapted: '根据公开资料改编', public: '公开资料', cocreate: '企业授权共创' };
+/* 体验里有没有真实来源（公开资料或据公开资料改编）。有的话，提示文字不能笼统说「全部虚构」。 */
+export const hasRealSources = (provenance: any[] | undefined) => (provenance || []).some((p: any) => p.kind === 'public' || p.kind === 'adapted');
 
 export function useCatalog() {
   const [items, setItems] = useState<Item[]>([]), [error, setError] = useState(''), [loading, setLoading] = useState(true);

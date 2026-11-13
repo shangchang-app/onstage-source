@@ -3,9 +3,11 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useSession } from './session';
 import { Modal } from './modal';
-import { Demo, ErrorBox, Grid, KindBadge, Loading, SOURCE_LABEL, STEPS, StatusBadge, date, daysLeft, expKind, guestSaveNote, routes, stepsFor, useCatalog, type Item } from './ui';
+import { Demo, ErrorBox, Grid, KindBadge, Loading, SOURCE_LABEL, STEPS, hasRealSources, StatusBadge, date, daysLeft, expKind, guestSaveNote, routes, stepsFor, useCatalog, type Item } from './ui';
 import { SAMPLE_OUTPUTS, SAMPLE_PLAN, SAMPLE_REVIEW } from '@/lib/samples';
 import { FunEntry } from './fun-entry';
+import { practiceState, practiceText, savedWorkFor } from './output';
+import type { Work } from '@/lib/local-data';
 
 export function Home() {
   const { items, error, loading } = useCatalog();
@@ -176,8 +178,10 @@ export function DetailView({ item, items, preview }: { item: Item; items: Item[]
 }
 
 function ExperienceDetail({ item, items, preview }: { item: Item; items: Item[]; preview?: boolean }) {
-  const { api, session } = useSession(); const d = item.data; const [draft, setDraft] = useState<any>(undefined);
+  const { api, session } = useSession(); const d = item.data; const [draft, setDraft] = useState<any>(undefined), [work, setWork] = useState<Work | null>(null);
   useEffect(() => { if (!preview && session && item.status === 'published') api('drafts/' + item.id).then(setDraft).catch(() => setDraft(null)); }, [session?.identity.stamp, item.id, item.status, api, session]);
+  /* 实践完成（与「我的」、成果页同一口径）：草稿所在版本（没有草稿就用当前版本）保存过成果。成果在本机，所以载入后再读。 */
+  useEffect(() => { if (!preview && draft !== undefined && d.guideSummary?.output) setWork(savedWorkFor(item.id, draft?.content_version ?? draft?.contentVersion ?? item.version)); }, [draft, item.id, item.version, preview, d.guideSummary?.output]);
   const guided = d.format === 'guided'; const quick = expKind(d) === 'quick'; const steps = stepsFor(d);
   const deep = quick ? items.find(i => i.id === d.guideSummary?.deep) : null;
   const gs = d.guideSummary || {};
@@ -190,7 +194,7 @@ function ExperienceDetail({ item, items, preview }: { item: Item; items: Item[];
       <div className="eyebrow" style={{ marginTop: 12 }}>{d.direction}</div>
       <h1 style={{ fontSize: 'clamp(26px,3.6vw,36px)', fontWeight: 900, marginTop: 2 }}>{d.title}</h1>
       <p className="lede">{d.about}</p>
-      <p className="warn-box" style={{ marginTop: 16 }}><b>开始前请知道：</b>这是线上模拟的工作场景，情境、数据和回答样例都是虚构的教学内容。做完不会得到分数或标签，也不是实习经历、能力认证或录用保证，更不是任何岗位的投递门槛。</p>
+      <p className="warn-box" style={{ marginTop: 16 }}><b>开始前请知道：</b>{hasRealSources(gs.provenance) ? '这是线上模拟的工作场景。情境、数据和回答样例是教学模拟内容；其中引用的少量真实信息，已在下面「内容来源与审核」里逐条标注。' : '这是线上模拟的工作场景，情境、数据和回答样例都是虚构的教学内容。'}做完不会得到分数或标签，也不是实习经历、能力认证或录用保证，更不是任何岗位的投递门槛。</p>
       {quick ? <section className="block" style={{ marginTop: 20 }}><h2>流程（约 {d.minutes} 分钟，不计时，可以随时暂停）</h2>
         <ol className="flow">{[['收到任务', '负责人在群里发来的一条消息'], ['看材料', '4 份短材料，自己决定看哪些、哪些是关键'], ['行动与理由', '组合下周的行动，或写自己的方案；一两句理由；还缺什么信息'], ['复盘', '根据你的选择：哪里合理、漏了什么、要权衡什么、怎么验证；再对照参考思路']].map(([a, b]) => <li key={a}><span><b>{a}</b>　{b}</span></li>)}</ol>
         {deep && <p className="small" style={{ marginTop: 12 }}>想做得更深？同一情境的 <Link href={'/experiences/' + deep.id}>{deep.data.title}</Link>（约 {deep.data.minutes} 分钟）。</p>}
@@ -209,8 +213,12 @@ function ExperienceDetail({ item, items, preview }: { item: Item; items: Item[];
     </article>
     <aside className="side panel"><div className="panel-b stack">
       <div><b style={{ fontSize: 34, color: 'var(--accent)' }} className="tnum">{d.minutes}</b> <span className="muted">分钟左右</span></div>
-      {preview ? <button className="btn btn-primary btn-block" disabled>开始体验 →</button> : <Link className="btn btn-primary btn-block" href={'/experiences/' + item.id + '/work'}>{draft ? (draft.conflict ? '有两份草稿，去选择' : '继续体验') : quick ? '开始（约 ' + d.minutes + ' 分钟）' : '开始体验'} →</Link>}
-      {draft && guided && <p className="small muted">上次看到：第 {Math.min(draft.progress?.step ?? 0, steps.length - 1) + 1} 步「{steps[Math.min(draft.progress?.step ?? 0, steps.length - 1)]}」· 已浏览 {Math.min(visited, steps.length)} / {steps.length} 步</p>}
+      {preview ? <button className="btn btn-primary btn-block" disabled>开始体验 →</button> : work && !draft?.conflict
+        ? <><p className="small" data-testid="detail-practice-state"><b>{practiceText(practiceState(null, work, true))}</b></p>
+          <div className="row"><Link className="btn btn-primary" href={'/works/?id=' + work.id}>查看成果</Link><Link className="btn" href={'/experiences/' + item.id + '/work'}>回到体验修改</Link></div>
+          <p className="xs muted">完成只看作答和成果：必填作答写完并保存了成果就算完成，没看的步骤（示范、参考思路）可以随时回去看。</p></>
+        : <Link className="btn btn-primary btn-block" href={'/experiences/' + item.id + '/work'}>{draft ? (draft.conflict ? '有两份草稿，去选择' : '继续体验') : quick ? '开始（约 ' + d.minutes + ' 分钟）' : '开始体验'} →</Link>}
+      {draft && guided && !work && <p className="small muted">上次看到：第 {Math.min(draft.progress?.step ?? 0, steps.length - 1) + 1} 步「{steps[Math.min(draft.progress?.step ?? 0, steps.length - 1)]}」· 已浏览 {Math.min(visited, steps.length)} / {steps.length} 步 · 必填作答写完并保存成果就算完成，不要求看完每一步</p>}
       <p className="xs muted">{session?.loginAvailable === false && !session.identity.userId ? '不用登录就能开始，可以随时暂停。' + guestSaveNote(session.sessionDays) + (gs.output ? `做完可以把「${gs.output}」保存在这个浏览器里，并导出备份。` : '') : '不用登录就能开始，进度会保存在这台设备的浏览器会话里；登录后保存到账号，可以在其他设备继续。保存完成记录需要登录。'}</p>
       <p className="xs muted">你的作答默认只有你自己能看到，企业看不到。</p>
     </div></aside></div>

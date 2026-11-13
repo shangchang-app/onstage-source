@@ -10,7 +10,7 @@ import { DISCLAIMER, PROJECT, ROLES, RULES_VERSION, SCENARIOS, TIEBREAK, USE_LIM
 import { answeredCount, evidence, outcome, resolve, tieKey } from '@/lib/buddy/engine';
 import { EMPTY, load, save, type BuddyState, type Snapshot, type Stale } from '@/lib/buddy/store';
 import { samplePaths } from '@/lib/buddy/paths';
-import { downloadLimited, drawCard, entryUrl, iconUrl, toBlob, ShareError } from '@/lib/buddy/share';
+import { canSystemShare, copyShareMessage, downloadLimited, drawCard, entryUrl, iconUrl, inWeChat, shareLinkOnly, shareMessage, systemShare, toBlob, ShareError, SystemShareError } from '@/lib/buddy/share';
 
 const TOTAL = SCENARIOS.length;
 const findRole = (id: string) => ROLES.find(r => r.id === id) || null;
@@ -162,7 +162,7 @@ function Result({ role, via, answers, head, onRestart, onEdit, storageNote }: { 
       <Evidence list={ev} />
       {via === 'hidden' && <p className="bd-hint">8 个情境里，你有 {SCENARIOS.filter(s => s.options.find(o => o.id === answers[s.id])?.detour).length} 次选了跳出原有方向的做法。</p>}
       <dl className="bd-two"><div><dt>表现出来的长处</dt><dd>{role.strength}</dd></div><div><dt>可能的取舍</dt><dd>{role.tradeoff}</dd></div></dl>
-      <div className="bd-actions"><button className="btn btn-primary" onClick={() => setShare(true)}>保存分享卡</button><button className="btn" onClick={onEdit}>返回修改</button><button className="btn" onClick={onRestart}>重新探索</button></div>
+      <div className="bd-actions"><button className="btn btn-primary" onClick={() => setShare(true)}>分享给好友</button><button className="btn" onClick={onEdit}>返回修改</button><button className="btn" onClick={onRestart}>重新探索</button></div>
       <p className="bd-fine">{DISCLAIMER}{USE_LIMIT}</p>
       {storageNote}
     </div>
@@ -181,7 +181,7 @@ function PreviousResult({ snap, head, onBack }: { snap: Snapshot; head: React.Re
       {snap.line && <p className="bd-bub solo">{snap.line}</p>}
       {snap.evidence.length > 0 && <><h2 className="bd-h2">当时的依据</h2><Evidence list={snap.evidence} /></>}
       <p className="bd-note">这是按当时的题目得出的结果，原样保留，没有用新题目重新计算。</p>
-      <div className="bd-actions">{role && <button className="btn btn-primary" onClick={() => setShare(true)}>保存分享卡</button>}<button className="btn" onClick={onBack}>返回</button></div>
+      <div className="bd-actions">{role && <button className="btn btn-primary" onClick={() => setShare(true)}>分享给好友</button>}<button className="btn" onClick={onBack}>返回</button></div>
       <p className="bd-fine">{DISCLAIMER}{USE_LIMIT}</p>
     </div>
     {role && <ShareModal role={role} open={share} onClose={() => setShare(false)} />}
@@ -202,7 +202,7 @@ function Recommend({ role }: { role: Role }) {
   const find = (id?: string) => items.find(i => i.kind === 'experience' && i.id === id && i.status === 'published');
   const main = find(role.rec.id), full = role.rec.full && main && expKind(main.data) === 'simple' ? find(role.rec.full.id) : undefined;
   return <section className="bd-panel bd-rec" aria-labelledby="bd-rec-h">
-    <h2 className="bd-h2" id="bd-rec-h">想把这种做法放进真实工作里试试？</h2>
+    <h2 className="bd-h2" id="bd-rec-h">想在模拟工作场景里试试这种做法？</h2>
     {loading ? <p className="muted small">正在找相关的岗位体验…</p> : main ? <div className="bd-rec-list">
       <RecCard item={main} why={role.rec.why} />
       {full && <RecCard item={full} why={role.rec.full!.why} />}
@@ -211,26 +211,68 @@ function Recommend({ role }: { role: Role }) {
   </section>;
 }
 
+/* 分享卡：分享给好友（系统分享面板，优先带图片）、复制链接、下载图片；微信等 App 内置浏览器里在图片上方提示长按图片发送或保存。
+   分享内容只有角色、一句话和入口链接，不带作答。不显示假的「分享成功」：系统分享面板关掉以后，只说交给了哪里。
+   每次点击只调一次系统分享：带图片分享失败后，显示「仅分享链接」，由用户再点一次；用户取消不重试、不提示。 */
 function ShareModal({ role, open, onClose }: { role: Role; open: boolean; onClose: () => void }) {
-  const [state, setState] = useState<'idle' | 'busy' | 'ok' | 'fail'>('idle'), [url, setUrl] = useState(''), [err, setErr] = useState(''), [msg, setMsg] = useState('');
-  const limited = useMemo(() => downloadLimited(), []);
+  const [state, setState] = useState<'idle' | 'busy' | 'ok' | 'fail'>('idle'), [url, setUrl] = useState(''), [blob, setBlob] = useState<Blob | null>(null), [err, setErr] = useState(''), [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null), [manual, setManual] = useState(false), [linkRetry, setLinkRetry] = useState(false);
+  const limited = useMemo(() => downloadLimited(), []), wechat = useMemo(() => inWeChat(), []), sys = useMemo(() => canSystemShare(), []);
+  const link = useMemo(() => (open ? entryUrl() : null), [open]);
+  const note = useRef<HTMLParagraphElement>(null);
+  useEffect(() => { if (msg) note.current?.scrollIntoView?.({ block: 'nearest' }); }, [msg]); // 手机上提示在按钮下面，出现时滚到能看见
   const file = `on-stage-buddy-${role.id}.png`; // 用英文文件名：部分浏览器遇到中文文件名会退回成「download」
   useEffect(() => {
     if (!open) return; let alive = true, made = '';
-    setState('busy'); setMsg(''); setErr('');
-    drawCard(role).then(toBlob).then(b => { made = URL.createObjectURL(b); if (alive) { setUrl(made); setState('ok'); } })
+    setState('busy'); setMsg(null); setErr(''); setManual(false); setLinkRetry(false);
+    // 微信等内置浏览器里用 data: 图片，长按才有「发送给朋友 / 保存图片」；其他浏览器用 blob: 地址
+    drawCard(role).then(async c => { const b = await toBlob(c); return { b, src: limited ? c.toDataURL('image/png') : (made = URL.createObjectURL(b)) }; })
+      .then(({ b, src }) => { if (alive) { setBlob(b); setUrl(src); setState('ok'); } })
       .catch(e => { if (alive) { setErr(e instanceof ShareError ? e.message : '图片生成失败'); setState('fail'); } });
-    return () => { alive = false; if (made) URL.revokeObjectURL(made); setUrl(''); };
-  }, [open, role]);
-  const download = () => { const a = document.createElement('a'); a.href = url; a.download = file; document.body.appendChild(a); a.click(); a.remove(); setMsg('已经交给浏览器下载。如果没有看到文件，可以长按上面的图片保存，或者直接截图。'); };
-  return <Modal open={open} title="保存分享卡" onClose={onClose} wide
-    footer={<><button className="btn" onClick={onClose}>关闭</button>{state === 'ok' && !limited && <button className="btn btn-primary" onClick={download}>下载图片</button>}</>}>
+    return () => { alive = false; if (made) URL.revokeObjectURL(made); setUrl(''); setBlob(null); };
+  }, [open, role, limited]);
+  const download = () => { const a = document.createElement('a'); a.href = url; a.download = file; document.body.appendChild(a); a.click(); a.remove(); setMsg({ text: '已经交给浏览器下载。如果没有看到文件，可以长按上面的图片保存，或者直接截图。' }); };
+  const copy = async () => { setManual(false); if (await copyShareMessage(role)) setMsg({ text: '已复制一句话和探索链接，可以粘贴到微信、QQ 等聊天里发给好友。链接里不带你的答案。' }); else { setManual(true); setMsg({ text: '这个浏览器不能自动复制，请长按下面的文字手动复制。', bad: true }); } };
+  const share = async () => {
+    if (!blob) return; setMsg(null); setLinkRetry(false);
+    try {
+      const r = await systemShare(role, blob, file);
+      if (r === 'file') setMsg({ text: '已把分享卡交给你选的 App，发出去之前可以在那个 App 里确认。' });
+      else if (r === 'link') setMsg({ text: '这个浏览器分享不了图片，已改为分享探索链接。想发图片可以先下载，再从相册发送。' });
+      else if (r === 'unsupported') { setMsg({ text: '这个浏览器调不起分享面板，可以复制链接发给好友，或者下载图片后从相册发送。', bad: true }); }
+    } catch (e) {
+      // 带图片的分享没成功：不自动重试，给出「仅分享链接」按钮，由用户再点一次
+      if (e instanceof SystemShareError && e.mode === 'file' && link) { setLinkRetry(true); setMsg({ text: '带图片的分享没有打开。可以点「仅分享链接」再试一次，或者复制链接发给好友，也可以下载图片后从相册发送。', bad: true }); }
+      else setMsg({ text: '系统分享没有打开，可以复制链接发给好友，或者下载图片后从相册发送。', bad: true });
+    }
+  };
+  const shareLink = async () => {
+    setMsg(null);
+    try {
+      const r = await shareLinkOnly(role);
+      if (r === 'link') { setLinkRetry(false); setMsg({ text: '已把探索链接交给你选的 App，发出去之前可以在那个 App 里确认。' }); }
+      else if (r === 'unsupported') setMsg({ text: '这个浏览器调不起分享面板，可以复制链接发给好友。', bad: true });
+    } catch { setMsg({ text: '仅分享链接也没有打开，可以复制链接发给好友，或者下载图片后从相册发送。', bad: true }); }
+  };
+  return <Modal open={open} title="分享给好友" onClose={onClose} wide
+    footer={<button className="btn" onClick={onClose}>关闭</button>}>
     {state === 'busy' && <p className="muted" role="status">正在生成图片…</p>}
     {state === 'ok' && <>
-      <img className="bd-share-img" src={url} alt={`分享卡：${role.name}——${role.line}`} />
-      {limited ? <p className="bd-note" role="status">这个 App 里的浏览器可能不支持直接下载：请<b>长按图片保存</b>，或者直接截图。</p>
-        : <p className="small muted">卡片上只有角色、一句话、入口和说明，不包含你的作答。{entryUrl() ? '二维码打开的是探索首页，不带你的答案。' : '当前网址是本机或测试地址，卡片上没有放二维码。'}</p>}
-      {msg && <p className="bd-note" role="status">{msg}</p>}
+      {/* 内置浏览器的长按提示放在图片上方：手机上打开弹窗第一屏就能看到。不同微信版本的长按菜单不一样，用条件式说法 */}
+      {limited && <p className="bd-note bd-note-top" role="status" data-testid="share-inapp">{wechat
+          ? <>在微信里：<b>长按下面的图片</b>，如果菜单里有「发送给朋友」，可以直接发给好友；没有的话选「保存图片」，再从相册发送。也可以点右上角「···」分享这个页面，或者复制链接、直接截图。</>
+          : <>这个 App 里的浏览器可能不支持直接下载和分享：可以<b>长按下面的图片</b>保存后发送，或者用右上角菜单分享这个页面，也可以复制链接、直接截图。</>}</p>}
+      <img className={'bd-share-img' + (limited ? ' compact' : '')} src={url} alt={`分享卡：${role.name}——${role.line}`} />
+      {/* 操作紧跟在图片下面：手机上弹窗比屏幕高，放在底部要滚到最后才看得到 */}
+      <div className="bd-share-actions">
+        {sys && <button className="btn btn-primary" onClick={share} data-testid="share-system">分享给好友</button>}
+        {linkRetry && <button className="btn" onClick={shareLink} data-testid="share-link-only">仅分享链接</button>}
+        {link && <button className="btn" onClick={copy}>复制链接</button>}
+        {!limited && <button className="btn" onClick={download}>下载图片</button>}
+      </div>
+      {msg && <p ref={note} className={'bd-note' + (msg.bad ? ' bad' : '')} role="status" data-testid="share-msg">{msg.text}</p>}
+      {manual && <textarea className="textarea" readOnly rows={3} value={shareMessage(role)} aria-label="要分享的文字和链接" onFocus={e => e.currentTarget.select()} data-testid="share-manual" />}
+      {!limited && !sys && <p className="small muted">这个浏览器调不起系统分享面板：可以复制链接发给好友，或者下载图片后从相册发送。</p>}
+      <p className="small muted">卡片和分享内容里只有角色、一句话、入口和说明，不包含你的作答。{link ? '二维码和链接打开的是探索首页，不带你的答案。' : '当前网址是本机或测试地址，卡片上没有放二维码，也没有可分享的链接。'}</p>
     </>}
     {state === 'fail' && <>
       <p className="bd-note bad" role="alert">{err}，没能生成图片。可以直接截图下面这张卡片。</p>

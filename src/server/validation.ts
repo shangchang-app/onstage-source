@@ -28,6 +28,8 @@ export const checkSchema = z.object({
 export const practiceFieldSchema = z.object({
   id: fieldId, label: short.min(1), kind: z.enum(['text', 'textarea', 'choices']),
   options: z.array(short.min(1)).max(10).default([]), placeholder: short.default(''), required: z.boolean().default(true),
+  /* 只能选一项的选择题（显示为单选）。不写就是原来的多选题，行为不变。 */
+  single: z.boolean().default(false),
   check: checkSchema.optional()
 });
 
@@ -144,6 +146,10 @@ export function checkGuide(data: ContentData) {
   const ids = data.guide.practice.flatMap(p => p.fields.map(f => f.id));
   demand(new Set(ids).size === ids.length, 422, 'GUIDE', '作答字段编号不能重复');
   for (const p of data.guide.practice) for (const f of p.fields) demand(f.kind !== 'choices' || f.options.length >= 2, 422, 'GUIDE', `「${f.label}」至少需要两个选项`);
+  for (const p of data.guide.practice) for (const f of p.fields) if (f.single) {
+    demand(f.kind === 'choices', 422, 'GUIDE', `「${f.label}」不是选择题，不能设为单选`);
+    demand(!f.check || f.check.expect.length === 1, 422, 'GUIDE', `「${f.label}」是单选题，参考标注只能有一项`);
+  }
   demand(data.willDo.length > 0 && data.learn.length > 0, 422, 'GUIDE', '请填写「将体验的工作」和「能学到什么」');
   const allFields = data.guide.practice.flatMap(p => p.fields);
   for (const f of allFields) if (f.check) {
@@ -164,17 +170,32 @@ export function checkGuide(data: ContentData) {
   }
 }
 
+/* 选择题作答的状态。单选题选了多项、或选项已不在题目里（旧草稿），都算没有完成，需要用户自己重新确认；
+   这里只判断，不改用户的数据，也不替用户选。 */
+type ChoiceField = { kind: string; options: string[]; single?: boolean; label: string };
+export type ChoiceIssue = { kind: 'empty' } | { kind: 'multi'; picked: string[] } | { kind: 'unknown'; picked: string[] };
+export function choiceIssue(f: ChoiceField, v: unknown): ChoiceIssue | null {
+  if (!Array.isArray(v)) return typeof v === 'string' && v.trim() ? { kind: 'unknown', picked: [v.trim()] } : { kind: 'empty' };
+  if (v.length === 0) return { kind: 'empty' };
+  const unknown = v.filter(x => !f.options.includes(x));
+  if (unknown.length) return { kind: 'unknown', picked: unknown };
+  if (f.single && v.length > 1) return { kind: 'multi', picked: [...v] };
+  return null;
+}
+/* 「还差」列表里显示的文字：单选题有旧的多选或失效选项时说明原因；多选题沿用原来的写法。 */
+export function missingLabel(f: ChoiceField & { kind: string }, v: unknown) {
+  if (f.kind !== 'choices' || !f.single) return f.label;
+  const i = choiceIssue(f, v);
+  return i?.kind === 'multi' ? `${f.label}：选了 ${i.picked.length} 项，只能选一项，请重新确认` : i?.kind === 'unknown' ? `${f.label}：之前的选择已不在选项里，请重新选择` : f.label;
+}
+export const fieldDone = (f: ChoiceField, v: unknown) => f.kind === 'choices' ? !choiceIssue(f, v) : typeof v === 'string' && v.trim().length >= 2;
+
 export const QUICK_ACTION_LABEL = '下周先做什么（选一项建议，或写自己的方案）';
 /* 某一版本体验的作答是否完整（用于提交与状态显示）。 */
 export function requiredStatus(data: ContentData, answers: Answers) {
   if (data.format === 'guided' && data.guide) {
     const fields = data.guide.practice.flatMap(p => p.fields).filter(f => f.required);
-    const ok = (f: { id: string; kind: string; options: string[] }) => {
-      const v = answers[f.id];
-      if (f.kind === 'choices') return Array.isArray(v) && v.length > 0 && v.every(x => f.options.includes(x));
-      return typeof v === 'string' && v.trim().length >= 2;
-    };
-    const missing = fields.filter(f => !ok(f)).map(f => f.label);
+    const missing = fields.filter(f => !fieldDone(f, answers[f.id])).map(f => missingLabel(f, answers[f.id]));
     let total = fields.length;
     if (data.guide.quick) { total++; const a = answers['plan.actions'], own = answers['plan.own']; const okA = Array.isArray(a) && a.length > 0 && a.every(x => data.guide!.quick!.actions[x]); if (!okA && !(typeof own === 'string' && own.trim().length >= 2)) missing.push(QUICK_ACTION_LABEL); }
     return { total, done: total - missing.length, missing };
