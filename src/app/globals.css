@@ -575,6 +575,10 @@ fieldset.qf[disabled] .choice{opacity:.6;cursor:not-allowed}
 .bd-rec-card:not(.simple) .bd-rec-kind::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--ink)}
 .bd-rec-card.simple .bd-rec-kind::before{content:"";width:8px;height:8px;border-radius:50%;border:1.5px solid var(--ink2)}
 .bd-share-img{display:block;width:100%;max-width:300px;height:auto;margin:0 auto 12px;border-radius:16px;box-shadow:var(--shadow)}
+.bd-share-img.compact{max-width:240px}
+.bd-note-top{margin:0 0 12px}
+.bd-share-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+.bd-share-actions:empty{display:none}
 .bd-shot{width:100%;max-width:320px;aspect-ratio:9/16;margin:12px auto 0;background:var(--bg);border-radius:20px;padding:22px 18px;display:flex;flex-direction:column;gap:2px}
 .bd-shot-brand{font-size:22px;font-weight:800}
 .bd-shot-sub{font-size:13px;color:var(--ink3)}
