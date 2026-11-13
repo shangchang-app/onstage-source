@@ -13,10 +13,10 @@ export type Role = {
   strength: string; tradeoff: string;
   /** 区分题里代表这个角色的选项（隐藏角色没有） */
   tiebreak?: string;
-  /** 推荐的岗位体验：id 必须是站内真实存在的体验；找不到时界面改为跳到体验列表。
-      界面按体验类型标明「简版练习」（只有任务和参考思路，没有成果页）或「完整实践」（有复盘，可保存成果）。
-      推荐的是简版练习时，再用 full 给一个完整实践。 */
-  rec: { id: string; why: string; full?: { id: string; why: string } };
+  /** V1.8 两级推荐：id 是第一入口，相关的短实践（几分钟、有即时反馈和复盘，可保存成果）；full 是第二入口，对应的完整实践。
+      两个 id 都必须是站内真实存在的体验；找不到时界面改为跳到体验列表。
+      推荐只按这次的选择挑一个话题，why 里不写「适合 / 擅长 / 能力」之类的话，不把动物结果说成职业能力或职业限制。 */
+  rec: { id: string; why: string; full: { id: string; why: string } };
 };
 
 export const ROLES: Role[] = [
@@ -24,66 +24,66 @@ export const ROLES: Role[] = [
     strength: '在这次情境中，你会主动把几种可能都摊开，不急着锁定第一个答案。',
     tradeoff: '选项开得越多，收拢需要的时间越长；时间紧的时候，可能要先定下一个再说。',
     tiebreak: '把这次没来得及试的几个方向记下来，留给下次',
-    rec: { id: 'my-quick', why: '几类用户里先服务谁，正适合先把可能性摊开，再收拢成一个选择。', full: { id: 'ai-eval', why: '同样是 AI 产品运营：比较 4 个 AI 回答，写一份自己的评测标准。' } } },
+    rec: { id: 'growth-feedback', why: '6 条反馈、4 个可能的问题，先摊开看，再收拢成一个最值得先验证的。', full: { id: 'overseas-growth', why: '完整版里有 4 类潜在用户，从摊开到收拢再走一遍，最后写成一份验证方案。' } } },
   { id: 'otter', name: '正在潜水的水獭', line: '没回消息，但快查明白了。', icon: 'otter.png', iconSource: 'noto',
     strength: '在这次情境中，你倾向先把事情查清楚再开口，交出来的东西比较扎实。',
     tradeoff: '埋头查的时候，别人不知道你进展到哪了，可能会以为你掉线了。',
     tiebreak: '把还没核对完的那组数据，再从头核一遍',
-    rec: { id: 'ops-returns-deep', why: '6 周数据、退货原因、评论和变更记录都在，够你潜下去查个明白。' } },
+    rec: { id: 'ai-answer-check', why: '把一条 AI 回答逐句对着规则查一遍，是「先查清楚再开口」的一种练法。', full: { id: 'ai-eval', why: '想查得更深：比较 4 个 AI 回答，写一份自己的评测标准。' } } },
   { id: 'collie', name: '叼着 Demo 的边牧', line: '你们先聊，我做了一个。', icon: 'collie.png', iconSource: 'original',
     strength: '在这次情境中，你习惯先做出一个能看的东西，让讨论有了具体的对象。',
     tradeoff: '做得快，有时会跑在大家对齐之前，返工的可能也会多一点。',
     tiebreak: '顺手把方案做成一个能点开的小样',
-    rec: { id: 'ops-returns', why: '8 分钟内先拿出一份行动方案，做完马上看到复盘。' } },
+    rec: { id: 'ops-returns', why: '8 分钟内先拿出一份行动方案，做完马上看到复盘。', full: { id: 'ops-returns-deep', why: '同一个情境的完整版：学 5 个分析方法，写一份问题诊断与行动建议。' } } },
   { id: 'cat', name: '自带时区的猫', line: '我有我的进度条。', icon: 'cat.png', iconSource: 'noto',
     strength: '在这次情境中，你会守住自己的节奏，在不被打断的时间里把重要的部分做扎实。',
     tradeoff: '节奏和团队不同步时，别人可能要等你，也不确定什么时候能等到。',
     tiebreak: '关掉消息提醒，安安静静把自己那部分收好尾',
-    rec: { id: 'ai-eval', why: '按自己的节奏，一条一条比较 4 个 AI 回答，再写下你的评测标准。' } },
+    rec: { id: 'ai-answer-check', why: '一句一句对照规则，按自己的节奏核对完再下判断。', full: { id: 'ai-eval', why: '有整块时间的时候：4 个回答、一套评测标准，按自己的节奏做完。' } } },
   { id: 'squirrel', name: '口袋塞满 Plan B 的松鼠', line: '别慌，我还留了一手。', icon: 'squirrel.png', iconSource: 'noto',
     strength: '在这次情境中，你会提前想到可能出岔子的地方，手里留着替代方案。',
     tradeoff: '准备备选也要花时间，有时会分走主线上的精力。',
     tiebreak: '把所有文件再备份一份，顺便想想下次可能卡在哪',
-    rec: { id: 'yc-std', why: '先算清一单能赚多少，再读两周数据，提前看出哪里可能出问题。', full: { id: 'ops-returns', why: '同一个岗位方向：利润变少了，组合几项行动并说明还缺什么。' } } },
+    rec: { id: 'growth-feedback', why: '下周只有 2 天：先验证哪个问题，同时想好「如果不成立怎么办」。', full: { id: 'overseas-growth', why: '完整版：设计低成本验证，提前定好结果怎样就继续、怎样就换方向。' } } },
   { id: 'seal', name: '给大家留气口的海豹', line: '先喘口气，事情还能解决。', icon: 'seal.png', iconSource: 'noto',
     strength: '在这次情境中，你会留意大家的状态，在紧张的时候给团队留出喘口气的空间。',
     tradeoff: '照顾大家节奏的时候，一些难开口的话可能会被往后放。',
     tiebreak: '跟每个组员说声辛苦了，顺便问问大家这周感觉怎么样',
-    rec: { id: 'xt-std', why: '先听清客户真正担心什么，再一条条判断哪些事能交给 AI。', full: { id: 'ai-eval', why: '站在用户的角度，比较 4 个 AI 回答哪个更合适。' } } },
+    rec: { id: 'growth-feedback', why: '先听听用户在说什么，再判断哪件事最该先处理。', full: { id: 'overseas-growth', why: '完整版：从 8 段访谈里听出真实需求，写成一份验证方案。' } } },
   { id: 'raccoon', name: '什么都想拆开的浣熊', line: '让我看看它到底怎么工作的。', icon: 'raccoon.png', iconSource: 'noto',
     strength: '在这次情境中，你想弄明白事情背后是怎么运转的，常常能摸到真正的原因。',
     tradeoff: '拆得太深的时候，可能会离当下要交的东西远一点。',
     tiebreak: '研究一下这周哪个环节最费时间，到底卡在了哪',
-    rec: { id: 'yc-quick', why: '从一条差评出发，拆开看问题到底出在哪个环节。', full: { id: 'ops-returns-deep', why: '6 周数据、退货原因和变更记录，完整拆一遍退货率为什么上升。' } } },
+    rec: { id: 'ops-returns', why: '订单涨了、利润少了，拆开看钱到底去了哪里。', full: { id: 'ops-returns-deep', why: '6 周数据、退货原因和变更记录，完整拆一遍退货率为什么上升。' } } },
   { id: 'octopus', name: '同时伸出八只手的章鱼', line: '这边我接，那边我也能搭一下。', icon: 'octopus.png', iconSource: 'noto',
     strength: '在这次情境中，你愿意同时接住好几块，哪里缺人就往哪里搭一把。',
     tradeoff: '手伸得多，每一块能分到的时间就少，自己也容易累。',
     tiebreak: '帮还没做完的同学收尾，顺手把共享文件也整理好',
-    rec: { id: 'ops-returns', why: '利润、退货、广告要一起看，再组合出几项行动。' } },
+    rec: { id: 'ops-returns', why: '利润、退货、广告要一起看，再组合出几项行动。', full: { id: 'ops-returns-deep', why: '完整版：一块一块拆开分析，最后整理成一张行动建议卡。' } } },
   { id: 'owl', name: '半夜突然想通的猫头鹰', line: '刚才那件事，我想明白了。', icon: 'owl.png', iconSource: 'noto',
     strength: '在这次情境中，你会把事情放一放、再回头想，常常在之后想到更好的说法。',
     tradeoff: '想通的时间不一定刚好赶在截止前，需要给自己提前留出余地。',
     tiebreak: '先什么都不急着做，让脑子把这周的事慢慢过一遍',
-    rec: { id: 'ai-eval', why: '4 个回答怎么排，没有标准排序，适合想一想再写下你的判断。' } },
+    rec: { id: 'ai-answer-check', why: '这条回答哪句最不可靠？可以先想一想再选，选完马上能看到反馈。', full: { id: 'ai-eval', why: '4 个回答怎么排没有标准排序，可以慢慢想清楚，再写下你的判断。' } } },
   { id: 'penguin', name: '自带集合点的企鹅', line: '我们先确认一下，去哪儿集合。', icon: 'penguin.png', iconSource: 'noto',
     strength: '在这次情境中，你会先确认大家要去同一个地方，让分工和目标对得上。',
     tradeoff: '确认和同步也要花时间，节奏快的人可能会觉得有点慢。',
     tiebreak: '在群里发一条：下次什么时候、在哪儿碰头',
-    rec: { id: 'my-quick', why: '资源有限的时候，先说清楚这个月优先服务哪类用户。', full: { id: 'ai-eval', why: '先和用户需求对齐，再定一份大家都能用的评测标准。' } } },
+    rec: { id: 'growth-feedback', why: '组里各有各的想法，先对齐：哪个问题证据最多、最该先查。', full: { id: 'overseas-growth', why: '完整版：先对齐优先服务哪类用户，再写假设和验证方案。' } } },
   { id: 'rabbit', name: '耳朵先收到消息的兔子', line: '你们有没有注意到这个变化？', icon: 'rabbit.png', iconSource: 'noto',
     strength: '在这次情境中，你对变化很敏感，常常比别人更早注意到不对劲的地方。',
     tradeoff: '提醒得早，信息有时还没核实完，需要再补上一句依据。',
     tiebreak: '刷一圈群消息和评论，看看大家对这次汇报怎么说',
-    rec: { id: 'yc-quick', why: '一条差评里藏着的信号，你可能会比别人先听到。', full: { id: 'ops-returns', why: '订单涨了利润却少了一半，从材料里找出变化。' } } },
+    rec: { id: 'growth-feedback', why: '用户反馈里的信号，对着数据看看是不是真的。', full: { id: 'overseas-growth', why: '完整版：分清事实和推测，把听到的信号写成能验证的假设。' } } },
   { id: 'hedgehog', name: '有边界的小刺猬', line: '能做，但有件事得先说清楚。', icon: 'hedgehog.png', iconSource: 'noto',
     strength: '在这次情境中，你会在开始前把范围和条件说清楚，让大家知道能做到哪一步。',
     tradeoff: '边界说得清楚，有时也会让人觉得你不太好商量。',
     tiebreak: '写下这次哪些事超出了当初的约定，下次开工前先说好',
-    rec: { id: 'xt-std', why: '哪些问题能交给 AI、哪些必须转人工，边界要先划清楚。', full: { id: 'ai-eval', why: '先定清楚评测标准，再判断哪个回答更合适。' } } },
+    rec: { id: 'ai-answer-check', why: '规则里写了什么、没写什么，边界要先分清：这条 AI 回答就多承诺了一句。', full: { id: 'ai-eval', why: '完整版：先定清楚评测标准，再判断哪个回答更合适。' } } },
   { id: 'platypus', name: '不按物种出牌的鸭嘴兽', line: '你给了三个选项，我找到了第四条路。', icon: 'platypus.png', iconSource: 'original',
     strength: '在这次情境中，你好几次没有在给出的方向里选，而是自己找了另一条路。',
     tradeoff: '新路需要花时间解释和验证，大家也可能要一点时间才能跟上你。',
-    rec: { id: 'xt-std', why: '先别急着给方案，先帮客户把问题找对，正适合换个角度看。', full: { id: 'ops-returns-deep', why: '完整版最后有一组新数据的迁移练习，正好换个角度再做一次。' } } },
+    rec: { id: 'growth-feedback', why: '4 个选项里哪个最值得先查？验证办法也可以写出你自己的路。', full: { id: 'overseas-growth', why: '完整版最后会换一个关键条件，看方案要不要改，正好换个角度再做一次。' } } },
 ];
 
 export type Option = { id: string; text: string; w: Partial<Record<RegularId, number>>; detour?: boolean };

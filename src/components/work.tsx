@@ -29,7 +29,7 @@ export function required(data: any, answers: Answers) {
     const fields = data.guide.practice.flatMap((p: any) => p.fields.map((f: any) => ({ ...f, practice: p.id }))).filter((f: any) => f.required !== false);
     const missing: { label: string; practice: string; field?: string }[] = fields.filter((f: any) => !fieldDone(f, answers[f.id])).map((f: any) => ({ label: missingLabel(f, answers[f.id]), practice: f.practice, field: f.id }));
     let total = fields.length;
-    if (data.guide.quick) { // 与服务端 QUICK_ACTION_LABEL 规则一致：选一项建议行动，或写自己的方案
+    if (data.guide.quick && data.guide.quick.mode !== 'pick') { // 与服务端 QUICK_ACTION_LABEL 规则一致：选一项建议行动，或写自己的方案（「选一项」模式只看各字段本身）
       total++; const a = answers['plan.actions'], own = answers['plan.own'];
       const okA = Array.isArray(a) && a.length > 0 && a.every(x => data.guide.quick.actions[x]);
       if (!okA && !(typeof own === 'string' && own.trim().length >= 2)) missing.push({ label: '下周先做什么（选一项建议，或写自己的方案）', practice: 'plan' });
@@ -215,7 +215,7 @@ export function Work({ id }: { id: string }) {
   if (guide.unavailable) return <div className="wrap page"><h1>这个岗位体验已下线</h1><p className="lede">暂时不能继续保存或完成。你之前保存的草稿和完成记录都还在，可以在「我的」查看。</p><p style={{ marginTop: 16 }}><Link className="btn" href="/me">查看我的内容 →</Link></p></div>;
 
   const data = guide.data; const g = data.guide; const guided = data.format === 'guided' && g; const quick = !!(guided && g.quick);
-  const steps = quick ? QUICK_STEPS : STEPS;
+  const steps: string[] = quick ? (g.quick.stepNames || QUICK_STEPS) : STEPS;
   const status = required(data, answers);
   const step = guided ? progress.step : 0;
   const user = session?.identity.userId;
@@ -322,7 +322,7 @@ export function Work({ id }: { id: string }) {
         </aside>
       </div>}
     </div>
-    {quick && <QuickWork id={id} data={data} g={g} answers={answers} set={setAnswer} readonly={readonly} progress={progress} go={go} openHint={openHint} heading={heading}
+    {quick && <QuickWork id={id} version={guide.version} data={data} g={g} answers={answers} set={setAnswer} readonly={readonly} progress={progress} go={go} openHint={openHint} heading={heading}
       reflection={reflection} setRefl={setRefl} finish={finishArea} relatedExps={relatedExps} relatedJobs={relatedJobs} items={items} lastField={lastField}
       saveLabel={<span className={'save-state ' + cls} role="status">第 {step + 1} 步 · {label}</span>} />}
   </>;

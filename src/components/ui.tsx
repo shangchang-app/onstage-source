@@ -13,7 +13,7 @@ export const STEPS = ['认识岗位', '看一次示范', '接到模拟任务', '
 export const QUICK_STEPS = ['收到任务', '看材料', '行动与理由', '复盘'];
 /* 体验是哪一种：短体验（V1.5，4 步）、深度版（6 步引导）、简版练习。data 可以是完整内容，也可以是列表里的摘要。 */
 export const expKind = (d: any): 'quick' | 'deep' | 'simple' => d.format !== 'guided' ? 'simple' : (d.guide?.quick || d.guideSummary?.quick) ? 'quick' : 'deep';
-export const stepsFor = (d: any) => expKind(d) === 'quick' ? QUICK_STEPS : STEPS;
+export const stepsFor = (d: any): string[] => expKind(d) === 'quick' ? (d.guide?.quick?.stepNames || d.guideSummary?.steps || QUICK_STEPS) : STEPS;
 export const SOURCE_LABEL: Record<string, string> = { sim: '模拟教学数据', adapted: '根据公开资料改编', public: '公开资料', cocreate: '企业授权共创' };
 /* 体验里有没有真实来源（公开资料或据公开资料改编）。有的话，提示文字不能笼统说「全部虚构」。 */
 export const hasRealSources = (provenance: any[] | undefined) => (provenance || []).some((p: any) => p.kind === 'public' || p.kind === 'adapted');
@@ -51,7 +51,7 @@ export function Card({ item, company }: { item: Item; company?: Item }) {
     <div className="tags"><KindBadge item={item} /><Demo on={item.demo} /></div>
     <div><div className="eyebrow">{d.direction}</div><h3>{d.title}</h3></div>
     <dl className="facts"><div><dt>时长</dt><dd>约 {d.minutes} 分钟，可以暂停</dd></div><div><dt>基础</dt><dd>{String(d.level || '').split(' · ').pop()}</dd></div>{d.learn?.[0] && k !== 'simple' && <div><dt>学到</dt><dd>{d.learn[0]}</dd></div>}<div><dt>成果</dt><dd>{d.deliverable || '文字作答 + 参考思路'}</dd></div></dl>
-    <div className="card-foot"><span className="muted">{k === 'quick' ? '收到任务 → 看材料 → 行动与理由 → 复盘' : k === 'deep' ? '6 步：认识岗位 → 示范学方法 → 任务 → 尝试 → 参考 → 迁移练习与成果' : '只有任务和参考思路'}</span><span className="go">{k === 'simple' ? '看看 →' : '开始 →'}</span></div>
+    <div className="card-foot"><span className="muted">{k === 'quick' ? stepsFor(d).join(' → ') : k === 'deep' ? '6 步：认识岗位 → 示范学方法 → 任务 → 尝试 → 参考 → 迁移练习与成果' : '只有任务和参考思路'}</span><span className="go">{k === 'simple' ? '看看 →' : '开始 →'}</span></div>
   </Link>; }
   if (item.kind === 'company') return <Link className="card" href={'/companies/' + item.id}>
     <div className="tags"><KindBadge item={item} /><Demo on={item.demo} /></div>

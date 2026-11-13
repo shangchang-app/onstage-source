@@ -29,7 +29,7 @@ export function Home() {
     </div>
     {error ? <div className="wrap"><ErrorBox text={error} /></div> : loading ? <Loading /> : <div className="wrap">
       <section className="sec" aria-labelledby="h-exp"><div className="sec-h"><div><span className="sec-no">01</span><h2 id="h-exp">现在能完整做完的：{themes.length} 个岗位主题</h2><p>都可以随时暂停，下次在同一个浏览器里接着做。做完可以把成果保存在本机。</p><p className="small muted" style={{ marginTop: 6 }}>模拟工作场景，数据是虚构的教学数据。不是实习经历、能力认证或录用保证。</p></div><Link className="link-more" href="/experiences">全部岗位体验 →</Link></div>
-        {themes.map(([dir, list]) => <div className="theme" key={dir}><h3 className="theme-h">{dir}<span className="small muted">{list.length > 1 ? `同一个情境，有短版和完整版两种深度（共 ${list.length} 个入口），不是 ${list.length} 个不同岗位` : '完整版'}</span></h3><Grid items={list} /></div>)}
+        {themes.map(([dir, list]) => <div className="theme" key={dir}><h3 className="theme-h">{dir}<span className="small muted">{list.length > 1 ? `有短版和完整版两种深度（共 ${list.length} 个入口），不是 ${list.length} 个不同岗位；可以先做短版` : '完整版'}</span></h3><Grid items={list} /></div>)}
         {simple.length > 0 && <div className="simple-list"><b className="small">简版练习</b><span className="small muted">只有任务和参考思路，没有成果页，完整版本还在制作：</span>
           <ul>{simple.map(i => <li key={i.id}><Link href={'/experiences/' + i.id}>{i.data.title}</Link> <span className="xs muted">{i.data.direction} · 约 {i.data.minutes} 分钟</span></li>)}</ul></div>}
         <p className="small muted" style={{ marginTop: 12 }}>正在规划（还不能体验）：游戏版本反馈分析。</p>
@@ -92,7 +92,7 @@ export function Catalog({ kind }: { kind: string }) {
   return <div className="wrap page">
     {(kind === 'job' || kind === 'event' || kind === 'company') && <LibSwitch cur={kind === 'job' ? 'jobs' : kind === 'company' ? 'companies' : 'events'} />}
     <div className="ph"><h1>{head[kind][0]}</h1><p className="lede">{head[kind][1]}</p></div>
-    {kind === 'experience' && <div className="notice" style={{ marginBottom: 8 }}>现在有 3 个岗位主题可以完整做完：跨境电商运营、AI 产品运营、出海增长。<b>短版</b>：5–10 分钟，收到任务、看材料、给方案、看复盘（跨境电商运营）。<b>完整版</b>：6 步引导，示范学方法、独立练习、迁移练习，最后保存成果，40–50 分钟。跨境电商运营的短版和完整版是同一个情境的两种深度。<b>简版练习</b>：只有任务和参考思路，完整版本还在制作中。</div>}
+    {kind === 'experience' && <div className="notice" style={{ marginBottom: 8 }}>现在有 3 个岗位主题可以完整做完：跨境电商运营、AI 产品运营、出海增长，每个主题都有短版和完整版。<b>短版</b>：5–10 分钟，看材料、做一个判断、马上看反馈和复盘，可以保存成果。<b>完整版</b>：6 步引导，示范学方法、独立练习、迁移练习，最后保存成果，40–50 分钟。<b>简版练习</b>：只有任务和参考思路，完整版本还在制作中。</div>}
     <div className="filters">
       <label>搜索<input className="input" type="search" placeholder="名称、方向、城市" value={q} onChange={e => setQ(e.target.value)} /></label>
       {types.length > 0 && <label>类型<select className="select" value={type} onChange={e => setType(e.target.value)}><option value="">全部类型</option>{types.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>}
@@ -196,8 +196,9 @@ function ExperienceDetail({ item, items, preview }: { item: Item; items: Item[];
       <p className="lede">{d.about}</p>
       <p className="warn-box" style={{ marginTop: 16 }}><b>开始前请知道：</b>{hasRealSources(gs.provenance) ? '这是线上模拟的工作场景。情境、数据和回答样例是教学模拟内容；其中引用的少量真实信息，已在下面「内容来源与审核」里逐条标注。' : '这是线上模拟的工作场景，情境、数据和回答样例都是虚构的教学内容。'}做完不会得到分数或标签，也不是实习经历、能力认证或录用保证，更不是任何岗位的投递门槛。</p>
       {quick ? <section className="block" style={{ marginTop: 20 }}><h2>流程（约 {d.minutes} 分钟，不计时，可以随时暂停）</h2>
-        <ol className="flow">{[['收到任务', '负责人在群里发来的一条消息'], ['看材料', '4 份短材料，自己决定看哪些、哪些是关键'], ['行动与理由', '组合下周的行动，或写自己的方案；一两句理由；还缺什么信息'], ['复盘', '根据你的选择：哪里合理、漏了什么、要权衡什么、怎么验证；再对照参考思路']].map(([a, b]) => <li key={a}><span><b>{a}</b>　{b}</span></li>)}</ol>
-        {deep && <p className="small" style={{ marginTop: 12 }}>想做得更深？同一情境的 <Link href={'/experiences/' + deep.id}>{deep.data.title}</Link>（约 {deep.data.minutes} 分钟）。</p>}
+        <ol className="flow">{(gs.flow?.length === 4 ? steps.map((s: string, i: number) => [s, gs.flow[i]]) : [['收到任务', '负责人在群里发来的一条消息'], ['看材料', '4 份短材料，自己决定看哪些、哪些是关键'], ['行动与理由', '组合下周的行动，或写自己的方案；一两句理由；还缺什么信息'], ['复盘', '根据你的选择：哪里合理、漏了什么、要权衡什么、怎么验证；再对照参考思路']]).map(([a, b]: string[]) => <li key={a}><span><b>{a}</b>　{b}</span></li>)}</ol>
+        {deep && (gs.deepWhy ? <p className="small" style={{ marginTop: 12 }} data-testid="detail-next-full">做完想学得更完整？<Link href={'/experiences/' + deep.id}>完整实践「{deep.data.title}」</Link>（约 {deep.data.minutes} 分钟）：{gs.deepWhy}</p>
+          : <p className="small" style={{ marginTop: 12 }}>想做得更深？同一情境的 <Link href={'/experiences/' + deep.id}>{deep.data.title}</Link>（约 {deep.data.minutes} 分钟）。</p>)}
       </section> : guided ? <section className="block" style={{ marginTop: 20 }}><h2>流程（约 {d.minutes} 分钟，不计时，可以随时暂停）</h2>
         <ol className="flow">{STEPS.map((s, i) => <li key={s}><span><b>{s}</b>　{['这个岗位解决什么问题，典型的一周怎么过', gs.lessons?.length ? `看一个做完的小案例（和正式任务用不同材料），学 ${gs.lessons.length} 个方法` : '看一个做完的小案例：背景、材料、思考过程、示例成果', '像接到一份工作任务：角色、情况、材料、要交什么', '分步作答，有提示、方法提醒和规则检查', '对照参考思路；看完可以回去改，改之前的版本会保留', gs.transfer ? `换一组材料做迁移练习，整理并保存你的${gs.output || '成果'}` : '说说你的感受，看看接下来学什么'][i]}</span></li>)}</ol>
       </section> : <section className="block" style={{ marginTop: 20 }}><h2>你会做的事</h2><ol>{d.tasks.map((t: any) => <li key={t.title}>{t.title}</li>)}</ol><p className="muted small" style={{ marginTop: 8 }}>简版练习：只有任务和参考思路，可以先看参考再决定要不要动手。完整引导的版本还在制作中，制作完成前不会标为完整体验。</p></section>}

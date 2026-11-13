@@ -33,12 +33,13 @@ test('出海增长：「选一类 / 选一项」两题是单选；标注「可�
 });
 
 /* 全站选择题按题意区分单选和多选（不按参考标注有几项自动判断）。 */
-const SINGLE: Record<string, string[]> = { 'overseas-growth': ['g1.segment', 'g7.change'], 'ai-eval': ['q7.shift'], 'ops-returns-deep': ['t.judge'] };
+/* V1.8 两个「选一项」短实践的 plan.actions 也是单选（题目写着「选一项」）。 */
+const SINGLE: Record<string, string[]> = { 'overseas-growth': ['g1.segment', 'g7.change'], 'ai-eval': ['q7.shift'], 'ops-returns-deep': ['t.judge'], 'ai-answer-check': ['plan.actions'], 'growth-feedback': ['plan.actions'] };
 const allGuided = () => { const s = new Store(join(mkdtempSync(join(tmpdir(), 'single-all-')), 'x.sqlite')); seed(s);
   const rows = s.all<{ id: string; data: string }>("SELECT id, data FROM content WHERE kind = 'experience'"); s.db.close();
   return rows.map(r => ({ id: r.id, data: contentSchema.parse(JSON.parse(r.data)) })).filter(r => r.data.format === 'guided' && r.data.guide); };
 
-test('全站选择题：按题意只有 4 题是单选（选一类 / 选一项 / 变化最大 / 你的判断），其余保持多选', () => {
+test('全站选择题：按题意只有 6 题是单选（选一类 / 选一项 / 变化最大 / 你的判断 / 两个短实践的选一项），其余保持多选', () => {
   const found: Record<string, string[]> = {}; let multi = 0;
   for (const { id, data: d } of allGuided()) {
     checkGuide(d);

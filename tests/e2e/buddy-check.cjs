@@ -91,8 +91,10 @@ const WORKS = JSON.stringify({ schema: 1, works: [{ id: 'w-keep', title: '保留
     const rec = p.locator('.bd-rec-card'); await rec.first().waitFor(); const hrefs = await rec.evaluateAll(l => l.map(a => a.getAttribute('href'))), kinds = await rec.evaluateAll(l => l.map(a => a.dataset.kind));
     ok(hrefs[0] === `${BASE}/experiences/${r.rec}/`, '推荐链接不对：' + hrefs[0]);
     const labels = await p.locator('.bd-rec-kind').allInnerTexts();
-    ok(labels.every((l, i) => kinds[i] === 'simple' ? l.startsWith('简版练习') : l.startsWith('完整实践')), '推荐没有标明简版练习 / 完整实践：' + labels.join(' | '));
-    if (kinds[0] === 'simple') { ok(hrefs.length === 2 && hrefs[1] === `${BASE}/experiences/${r.full}/` && kinds[1] !== 'simple', '推荐简版练习时应再给一个完整实践'); }
+    ok(labels.every((l, i) => l.startsWith({ simple: '简版练习', quick: '短实践', deep: '完整实践' }[kinds[i]])), '推荐没有标明短实践 / 完整实践：' + labels.join(' | '));
+    // V1.8：第一入口是短实践，第二入口是完整实践；都标明时间和能学到什么
+    ok(kinds.join() === 'quick,deep' && hrefs[1] === `${BASE}/experiences/${r.full}/`, '推荐应是「短实践 → 完整实践」：' + kinds.join() + ' ' + hrefs.join());
+    const recText = await rec.allInnerTexts(); ok(recText.every(x => /约 \d+ 分钟/.test(x) && x.includes('能学到')), '推荐卡没有写时间或能学到什么');
     for (const h of hrefs) ok((await p.request.get(`http://127.0.0.1:${port}${h}`)).status() === 200, '推荐体验打不开：' + h);
     await shot(p, `10-结果-${r.id}-390`);
     // 分享卡：下载真实 PNG，检查尺寸、二维码内容
@@ -170,14 +172,15 @@ const WORKS = JSON.stringify({ schema: 1, works: [{ id: 'w-keep', title: '保留
     clean(p); await c.close();
   });
 
-  await check('端到端：动物探索 → 结果 → 分享卡 → 点推荐的完整实践 → 实际作答并点「保存成果」→ 从「我的」重新打开', async () => {
-    const otter = P.roles.find(r => r.id === 'otter');
+  await check('端到端：动物探索 → 结果 → 分享卡 → 点推荐的完整实践（第二入口）→ 实际作答并点「保存成果」→ 从「我的」重新打开', async () => {
+    const otter = P.roles.find(r => r.id === 'raccoon'); // 第一入口是同一情境的短实践，第二入口是完整实践 ops-returns-deep
     const { c, p } = await ctx({ deviceScaleFactor: 1 });
     await start(p); await runPath(p, otter.answers); ok(await resultName(p) === otter.name, '结果不对');
     await p.locator('.bd-actions').getByRole('button', { name: '分享给好友' }).click(); await p.waitForSelector('.bd-share-img');
-    const [dl] = await Promise.all([p.waitForEvent('download'), p.getByRole('button', { name: '下载图片' }).click()]); ok(dl.suggestedFilename() === 'on-stage-buddy-otter.png', '分享卡没下载');
+    const [dl] = await Promise.all([p.waitForEvent('download'), p.getByRole('button', { name: '下载图片' }).click()]); ok(dl.suggestedFilename() === 'on-stage-buddy-raccoon.png', '分享卡没下载');
     await p.getByRole('button', { name: '关闭' }).click();
-    const rec = p.locator('.bd-rec-card').first(); ok((await rec.getAttribute('data-kind')) === 'deep' && (await rec.innerText()).startsWith('完整实践'), '水獭应推荐完整实践');
+    ok((await p.locator('.bd-rec-card').first().getAttribute('data-kind')) === 'quick', '第一入口应是短实践');
+    const rec = p.locator('.bd-rec-card').nth(1); ok((await rec.getAttribute('data-kind')) === 'deep' && (await rec.innerText()).includes('完整实践'), '第二入口应是完整实践');
     await rec.click(); await p.waitForURL('**/experiences/ops-returns-deep/'); await p.waitForSelector('main h1');
     await p.locator('main a.btn-primary[href$="/experiences/ops-returns-deep/work"], main a.btn-primary[href$="/experiences/ops-returns-deep/work/"]').first().click();
     await p.waitForSelector('.stepper');
@@ -198,7 +201,7 @@ const WORKS = JSON.stringify({ schema: 1, works: [{ id: 'w-keep', title: '保留
     const w = await p2.locator('.work-card').innerText(); ok(w.includes('从水獭结果过来') && w.includes('教学模拟作品'), '重新打开的成果内容不对');
     ok(!/水獭|隐藏工位搭子/.test(w.replace(/从水獭结果过来[^\n]*/g, '')), '成果里不应混入趣味探索的结果');
     const st = await p2.evaluate(() => ({ buddy: JSON.parse(localStorage.getItem('onstage-buddy:v1')), works: JSON.parse(localStorage.getItem('onstage-works:v1')) }));
-    ok(st.buddy.result?.role === 'otter' && st.works.works.length === 1, '两份数据应各自独立保存');
+    ok(st.buddy.result?.role === 'raccoon' && st.works.works.length === 1, '两份数据应各自独立保存');
     await shot(p2, '41-端到端-从我的打开成果'); ok(p2.errors.length === 0, p2.errors.join(' | ')); await c.close();
   });
 

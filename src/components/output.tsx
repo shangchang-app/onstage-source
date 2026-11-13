@@ -140,14 +140,14 @@ export function MyWorks() {
     try {
       const data = exportBackup(); const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'onstage-backup-' + new Date().toISOString().slice(0, 10) + '.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-      setMsg(`已导出备份：${data.works.length} 份成果、${data.drafts.length} 份草稿。请把文件保存好。`);
+      setMsg(`已导出备份：${data.works.length} 份成果、${data.drafts.length} 份草稿、${data.feedback.length} 条反馈。请把文件保存好。`);
     } catch (e) { setErr(errText(e)); }
   }
   async function upload(f: File) {
     setMsg(''); setErr(null);
     try {
       const r = importBackup(await f.text());
-      setMsg(`导入完成：新增 ${r.added} 份成果，更新 ${r.updated} 份，保留现有较新的 ${r.kept} 份；新增 ${r.draftsAdded} 份草稿${r.draftsSkipped ? `，${r.draftsSkipped} 份草稿因为这里已有同一体验的草稿而跳过` : ''}${r.skippedBad ? `；${r.skippedBad} 条格式不对，没有导入` : ''}。`);
+      setMsg(`导入完成：新增 ${r.added} 份成果，更新 ${r.updated} 份，保留现有较新的 ${r.kept} 份；新增 ${r.draftsAdded} 份草稿${r.draftsSkipped ? `，${r.draftsSkipped} 份草稿因为这里已有同一体验的草稿而跳过` : ''}${r.feedbackAdded ? `；导入或更新 ${r.feedbackAdded} 条反馈` : ''}${r.skippedBad ? `；${r.skippedBad} 条格式不对，没有导入` : ''}。`);
       reload();
     } catch (e) { setErr(errText(e)); } finally { if (file.current) file.current.value = ''; }
   }
@@ -156,7 +156,7 @@ export function MyWorks() {
       {works === null ? <p role="status">正在载入…</p> : works.length ? <div className="stack">{works.map(w => <div className="list-row" key={w.id}><div style={{ minWidth: 0 }}><b>{w.outputTitle}</b><div className="small muted">{w.experienceTitle} · 第 {w.contentVersion} 版 · {workTimes(w)}{w.revisions.length ? ` · ${w.revisions.length} 次修改记录` : ''}</div></div><Link className="btn" href={'/works/?id=' + w.id}>打开</Link></div>)}</div>
         : <div className="empty">还没有保存的成果。做完一个完整的岗位体验，在最后一步点「保存成果到本机」。</div>}
     </section>
-    <section className="sec" aria-labelledby="h-backup"><div className="sec-h"><div><h2 id="h-backup">备份</h2><p>把成果和草稿导出成一个文件，换浏览器或清理数据前先导出；之后可以再导入。</p></div></div>
+    <section className="sec" aria-labelledby="h-backup"><div className="sec-h"><div><h2 id="h-backup">备份</h2><p>把成果、草稿和反馈导出成一个文件，换浏览器或清理数据前先导出；之后可以再导入。</p></div></div>
       <div className="row"><button type="button" className="btn" onClick={download}>导出备份</button>
         <button type="button" className="btn" onClick={() => file.current?.click()}>导入备份</button><input id="import-file" ref={file} hidden type="file" accept="application/json,.json" aria-label="选择备份文件" onChange={e => { const f = e.target.files?.[0]; if (f) void upload(f); }} /></div>
       <p className="xs muted" style={{ marginTop: 8 }}>导入不会删除现有内容：同一份成果保留较新的版本（旧的放进修改记录）；同一个体验已有草稿时，不会覆盖。{DRAFT_VS_WORK}</p>

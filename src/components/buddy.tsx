@@ -188,26 +188,33 @@ function PreviousResult({ snap, head, onBack }: { snap: Snapshot; head: React.Re
   </div>;
 }
 
-/* 推荐：明确标出「简版练习」还是「完整实践」。推荐的是简版练习时，再给一个完整实践。体验不存在或没发布时，只给体验列表，不做假入口。 */
-const KIND_LABEL = { simple: ['简版练习', '只有任务和参考思路，没有复盘，也不生成成果'], quick: ['完整实践 · 短版', '收到任务、看材料、给方案、看复盘'], deep: ['完整实践 · 完整版', '示范、独立练习、迁移练习，最后保存成果'] } as const;
-function RecCard({ item, why }: { item: Item; why: string }) {
+/* 推荐（V1.8 两级）：第一入口是相关的短实践（几分钟，有即时反馈和复盘，可保存成果），第二入口是对应的完整实践。
+   每张卡标明预计时间和能学到什么。体验不存在或没发布时，只给体验列表，不做假入口。
+   推荐只按这次的选择挑一个话题，不把动物结果说成职业能力或职业限制。 */
+const KIND_LABEL = { simple: ['简版练习', '只有任务和参考思路，没有复盘，也不生成成果'], quick: ['短实践', '看材料、做一个判断、马上看反馈和复盘，可以保存成果'], deep: ['完整实践', '示范学方法、独立练习、迁移练习，最后保存成果'] } as const;
+function RecCard({ item, why, step }: { item: Item; why: string; step: string }) {
   const k = expKind(item.data), [label, desc] = KIND_LABEL[k];
-  return <Link className={'bd-rec-card ' + k} href={'/experiences/' + item.id + '/'} data-kind={k}>
+  const learn: string[] = (item.data.learn || []).slice(0, 2);
+  return <Link className={'bd-rec-card ' + k} href={'/experiences/' + item.id + '/'} data-kind={k} data-testid={'rec-' + k}>
+    <span className="bd-rec-step">{step}</span>
     <span className="bd-rec-kind">{label}<em>约 {item.data.minutes} 分钟 · {item.data.direction}</em></span>
-    <b>{item.data.title}</b><span className="small ink2">{why}</span><span className="xs muted">{desc}</span>
+    <b>{item.data.title}</b><span className="small ink2">{why}</span>
+    {learn.length > 0 && <span className="bd-rec-learn">能学到：{learn.join('；')}</span>}
+    <span className="xs muted">{desc}</span>
   </Link>;
 }
 function Recommend({ role }: { role: Role }) {
   const { items, loading, error } = useCatalog();
   const find = (id?: string) => items.find(i => i.kind === 'experience' && i.id === id && i.status === 'published');
-  const main = find(role.rec.id), full = role.rec.full && main && expKind(main.data) === 'simple' ? find(role.rec.full.id) : undefined;
+  const main = find(role.rec.id), full = find(role.rec.full?.id);
   return <section className="bd-panel bd-rec" aria-labelledby="bd-rec-h">
     <h2 className="bd-h2" id="bd-rec-h">想在模拟工作场景里试试这种做法？</h2>
-    {loading ? <p className="muted small">正在找相关的岗位体验…</p> : main ? <div className="bd-rec-list">
-      <RecCard item={main} why={role.rec.why} />
-      {full && <RecCard item={full} why={role.rec.full!.why} />}
+    {loading ? <p className="muted small">正在找相关的岗位体验…</p> : main || full ? <div className="bd-rec-list">
+      {main && <RecCard item={main} why={role.rec.why} step={full ? '第一步 · 先花几分钟试试' : '可以先试试'} />}
+      {full && <RecCard item={full} why={role.rec.full.why} step={main ? '第二步 · 想学得更完整' : '可以试试'} />}
     </div> : <p className="small ink2">{error ? '岗位体验暂时没加载出来。' : '这个方向的体验还在制作。'}<Link href="/experiences/">看看现在能做的岗位体验 →</Link></p>}
-    <p className="small" style={{ marginTop: 12 }}><Link href="/experiences/">也看看其他方向 →</Link> <span className="muted">结果只是这次的选择，不限定你适合什么工作。</span></p>
+    <p className="small muted bd-rec-note" data-testid="rec-note">推荐只是按这次的选择挑了一个话题，不代表你适合或不适合哪个方向。</p>
+    <p className="small" style={{ marginTop: 6 }}><Link href="/experiences/">也看看其他方向 →</Link></p>
   </section>;
 }
 

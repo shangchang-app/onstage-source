@@ -38,7 +38,7 @@ export class Service {
     }
     const {confirmation: _confirmation,...safe} = c;
     const { guide, ...rest } = c.data;
-    const summary = guide ? { quick: !!guide.quick, deep: guide.quick?.deep || '', output: guide.output?.title || '', lessons: guide.lessons.map(l => l.title), transfer: guide.practice.some(p => p.when === 'transfer'), review: guide.review, provenance: guide.provenance.length ? guide.provenance : (guide.quick?.provenance || []), steps: guide.quick ? QUICK_STEP_NAMES : STEP_NAMES, practice: guide.practice.map(p => p.title), relatedJobs: guide.related.jobs, relatedExperiences: guide.related.experiences } : undefined;
+    const summary = guide ? { quick: !!guide.quick, deep: guide.quick?.deep || '', output: guide.output?.title || '', lessons: guide.lessons.map(l => l.title), transfer: guide.practice.some(p => p.when === 'transfer'), review: guide.review, provenance: guide.provenance.length ? guide.provenance : (guide.quick?.provenance || []), steps: guide.quick ? (guide.quick.stepNames || QUICK_STEP_NAMES) : STEP_NAMES, quickMode: guide.quick?.mode || '', flow: guide.quick?.flow || [], deepWhy: guide.quick?.deepWhy || '', practice: guide.practice.map(p => p.title), relatedJobs: guide.related.jobs, relatedExperiences: guide.related.experiences } : undefined;
     return {...safe,data:{...rest,authorizationNote:undefined,tasks:c.data.tasks.map(({reference: _reference,...task}) => task),guideSummary:summary}};
   }
   list(kind?: string, admin = false) {

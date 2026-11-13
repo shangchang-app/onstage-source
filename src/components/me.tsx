@@ -4,12 +4,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from './session';
 import { Modal } from './modal';
-import { AnswerList, ErrorBox, Grid, Loading, dateTime, guestSaveNote, stepsFor } from './ui';
+import { AnswerList, ErrorBox, Grid, Loading, dateTime, guestSaveNote, stepsFor, useCatalog } from './ui';
+import { MyFeedback } from './feedback';
 import { MyWorks, practiceState, practiceText, savedWorkFor } from './output';
 import { LocalError, discardDraft } from '@/lib/local-data';
 
 export function Me() {
   const { session, api, toast, adopt } = useSession(); const router = useRouter();
+  const { items } = useCatalog();
   const [data, setData] = useState<any>(null), [error, setError] = useState(''), [view, setView] = useState<any>(null), [drop, setDrop] = useState<any>(null);
   const load = useCallback(() => api('mine').then(d => { setData(d); setError(''); }).catch(e => setError(e.message)), [api]);
   useEffect(() => { if (session) void load(); }, [session?.identity.stamp, load, session]);
@@ -37,6 +39,8 @@ export function Me() {
           <div className="xs muted">{d.content.data.format === 'guided' && ps.kind !== 'done' ? (() => { const st = stepsFor(d.content.data), i = Math.min(d.progress?.step ?? 0, st.length - 1); return <>停在第 {i + 1} 步「{st[i]}」 · </>; })() : null}{d.progress?.referenceViewed ? '已看参考思路 · ' : ''}草稿保存于 {dateTime(d.savedAt)}</div>
           {d.conflict && <span className="badge b-warn" style={{ marginTop: 4 }}>有两份作答，需要选择</span>}
           {d.outdated && <span className="badge b-gray" style={{ marginTop: 4 }}>体验已更新，你在做旧版本，可以继续做完</span>}
+          {/* 短实践保存成果以后，推荐对应的完整实践 */}
+          {ps.kind === 'done' && (() => { const full = items.find(i => i.id === d.content.data.guideSummary?.deep && i.status === 'published'); return full ? <div className="small" style={{ marginTop: 4 }} data-testid="me-next-full">下一步：<Link href={'/experiences/' + full.id}>完整实践「{full.data.title}」</Link><span className="muted">（约 {full.data.minutes} 分钟）</span></div> : null; })()}
         </div>
         <div className="row">{session.staticTrial && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDrop(d)}>清除草稿</button>}{ps.work && <Link className="btn" href={'/works/?id=' + ps.work.id}>查看成果</Link>}<Link className={'btn' + (ps.kind === 'done' ? '' : ' btn-primary')} href={'/experiences/' + d.contentId + '/work'}>{ps.kind === 'done' ? '回到体验修改' : '继续体验 →'}</Link></div>
       </div>; })}</div> : <div className="empty">还没有进行中的体验。<Link href="/experiences">去看看岗位体验 →</Link></div>}
@@ -44,6 +48,8 @@ export function Me() {
     </section>
 
     <MyWorks />
+
+    <MyFeedback />
 
     {user && <section className="sec" aria-labelledby="h-rec"><div className="sec-h"><div><h2 id="h-rec">体验完成记录</h2><p>只表示完成了模拟体验，不代表实习或职业资格。</p></div></div>
       {data.records.length ? <div className="stack">{data.records.map((r: any) => <div className="list-row" key={r.id}><div><b>{r.title}</b><div className="small muted">{r.direction} · 第 {r.contentVersion} 版 · 完成于 {dateTime(r.createdAt)}</div></div><Link className="btn" href={'/records/' + r.id}>查看</Link></div>)}</div> : <div className="empty">还没有完成记录。完成一次岗位体验并保存后会出现在这里。</div>}
