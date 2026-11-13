@@ -591,3 +591,13 @@ fieldset.qf[disabled] .choice{opacity:.6;cursor:not-allowed}
 .bd-gcard{display:grid;gap:8px;align-content:start}
 @media (max-width:420px){.bd-panel{padding:20px 16px}.bd-hero h1{font-size:24px}.bd-nav .btn{flex:1}}
 @media (prefers-reduced-motion:reduce){.bd-bar i,.bd-opt{transition:none}}
+/* V1.8 短实践：选一项后的即时反馈、轻量反馈、动物结果的两级推荐（黑白视觉，沿用现有色值） */
+.pick-fb-row{margin-top:12px;align-items:center}
+.pick-fb{margin-top:12px;border:1.5px solid var(--ink);border-radius:var(--r-sm);padding:12px 16px;background:var(--surface)}
+.pick-fb p{margin:6px 0 0}
+.pick-fb .pick-fb-h{margin:0;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.fb-box .fb-ratings{display:flex;flex-wrap:wrap;gap:8px}
+.fb-box .fb-ratings .choice{flex:1 1 120px}
+.bd-rec-step{font-size:12px;font-weight:700;color:var(--ink3);letter-spacing:.02em}
+.bd-rec-learn{font-size:14px;color:var(--ink2)}
+.bd-rec-note{margin-top:10px}

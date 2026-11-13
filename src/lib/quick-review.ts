@@ -2,7 +2,8 @@
 type Answers = Record<string, string | string[]>;
 export const TONE: Record<string, [string, string]> = {
   core: ['直接针对主要原因', 'b-green'], support: ['有帮助', 'b-blue'], tradeoff: ['需要权衡', 'b-warn'], weak: ['证据不足', 'b-gray'],
-  risky: ['可能让问题更严重', 'b-red'], key: ['最能检验判断', 'b-green'], later: ['可以放在后面', 'b-gray']
+  risky: ['可能让问题更严重', 'b-red'], key: ['最能检验判断', 'b-green'], later: ['可以放在后面', 'b-gray'],
+  strong: ['依据最充分', 'b-green'], partial: ['有道理，但不是最先要做的', 'b-blue'], miss: ['材料里的依据不够', 'b-gray']
 };
 const arr = (v: unknown): string[] => Array.isArray(v) ? v as string[] : [];
 const str = (v: unknown) => typeof v === 'string' ? v : '';
@@ -30,3 +31,17 @@ export function quickReview(q: any, answers: Answers, opened: string[]) {
   return { actions, missing, own, missingOwn, kept, good, gaps, trade, verify, many, noAction: !actions.length && own ? q.noActionText : '' };
 }
 
+
+/* V1.8「选一项」短实践的反馈与复盘：只看用户选了哪一项、先看了哪一项的反馈、打开了哪些材料；
+   用户写的理由和后续（修改建议 / 验证办法）原样展示，不读取、不评价。 */
+export function pickReview(q: any, answers: Answers, opened: string[], hints: string[] = []) {
+  const picked = arr(answers['plan.actions']);
+  const choice = picked.length === 1 && q.actions[picked[0]] ? picked[0] : '';
+  const verdict = choice ? q.actions[choice] : null;
+  const seen = hints.filter(h => h.startsWith('fb:')).map(h => h.slice(3)).filter(o => q.actions[o]);
+  const first = seen[0] || '';
+  const others = Object.entries<any>(q.actions).filter(([o]) => o !== choice).map(([o, v]) => ({ option: o, tone: v.tone, text: v.good, tradeoff: v.tradeoff }));
+  const best = Object.entries<any>(q.actions).filter(([, v]) => v.tone === 'strong').map(([o]) => o);
+  const gaps = q.materials.filter((m: any) => m.key && !opened.includes(m.id) && m.missed).map((m: any) => ({ title: '没有打开：' + m.title, text: m.missed }));
+  return { choice, verdict, first: first && first !== choice ? first : '', seen, others, best, gaps, reason: str(answers['plan.reason']).trim(), follow: str(answers['plan.follow']).trim(), multi: picked.length > 1 };
+}

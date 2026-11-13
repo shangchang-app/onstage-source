@@ -5,6 +5,8 @@
 
 export const DRAFT_KEY = 'onstage-free:v1';
 export const WORKS_KEY = 'onstage-works:v1';
+/* V1.8 轻量反馈：只存在这台设备的浏览器里，不会发送给平台（还没有接入服务器）。可以随备份导出，也可以单独导出。 */
+export const FEEDBACK_KEY = 'onstage-feedback:v1';
 export const BACKUP_FORMAT = 'onstage-backup';
 const MAX_REVISIONS = 10;
 const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
@@ -72,10 +74,30 @@ export async function requestPersist(): Promise<'granted' | 'denied' | 'unsuppor
   try { const s = (navigator as any).storage; if (!s?.persist) return 'unsupported'; if (await s.persisted?.()) return 'granted'; return (await s.persist()) ? 'granted' : 'denied'; } catch { return 'unsupported'; }
 }
 
+/* ---------- 轻量反馈（V1.8） ---------- */
+export const RATINGS = [['helpful', '有帮助'], ['confused', '没看懂'], ['easy', '太简单'], ['hard', '太难']] as const;
+export type Rating = typeof RATINGS[number][0];
+export type Feedback = { id: string; experienceId: string; experienceTitle: string; contentVersion: number; rating: Rating; reason: string; createdAt: string; updatedAt: string; sent: false };
+const RATING_IDS = RATINGS.map(r => r[0]) as string[];
+function validFeedback(f: any): f is Feedback { return !!f && typeof f.id === 'string' && typeof f.experienceId === 'string' && Number.isInteger(f.contentVersion) && RATING_IDS.includes(f.rating) && typeof f.reason === 'string' && f.reason.length <= 500 && typeof f.updatedAt === 'string'; }
+export function readFeedback(): Feedback[] { const d = readKey(FEEDBACK_KEY); return Array.isArray(d?.items) ? d!.items.filter(validFeedback) : []; }
+function writeFeedback(items: Feedback[]) { writeKey(FEEDBACK_KEY, { schema: 1, note: '只保存在本机，没有发送给平台', items }); }
+export function getFeedback(experienceId: string, contentVersion: number) { return readFeedback().find(f => f.experienceId === experienceId && f.contentVersion === contentVersion) || null; }
+/* 同一个体验的同一个版本只留一条：再保存就是修改（原来的提交时间保留）。 */
+export function saveFeedback(input: { experienceId: string; experienceTitle: string; contentVersion: number; rating: Rating; reason: string }): Feedback {
+  if (!RATING_IDS.includes(input.rating)) throw new LocalError('IMPORT_FORMAT', '请选择一项反馈。', '在「有帮助 / 没看懂 / 太简单 / 太难」里选一项。');
+  const items = readFeedback(); const at = new Date().toISOString(); const reason = input.reason.trim().slice(0, 500);
+  const cur = items.find(f => f.experienceId === input.experienceId && f.contentVersion === input.contentVersion);
+  if (cur) { Object.assign(cur, { rating: input.rating, reason, experienceTitle: input.experienceTitle, updatedAt: at }); writeFeedback(items); return cur; }
+  const f: Feedback = { id: uid(), ...input, reason, createdAt: at, updatedAt: at, sent: false };
+  writeFeedback([f, ...items]); return f;
+}
+export function exportFeedback() { return { format: 'onstage-feedback', version: 1, exportedAt: new Date().toISOString(), note: 'on stage 本机反馈：只保存在这台设备上，没有发送给平台。你可以把这个文件发给我们。', items: readFeedback() }; }
+
 /* ---------- 备份 ---------- */
 export function exportBackup() {
   const draftsDb = (() => { try { return readKey(DRAFT_KEY); } catch { return null; } })();
-  return { format: BACKUP_FORMAT, version: 1, exportedAt: new Date().toISOString(), note: 'on stage 本机备份：包含成果和这个浏览器里的草稿。教学模拟作品，不是实习经历或能力认证。', works: readWorks(), drafts: draftsDb?.drafts ? Object.values(draftsDb.drafts) : [] };
+  return { format: BACKUP_FORMAT, version: 1, exportedAt: new Date().toISOString(), note: 'on stage 本机备份：包含成果和这个浏览器里的草稿。教学模拟作品，不是实习经历或能力认证。', works: readWorks(), drafts: draftsDb?.drafts ? Object.values(draftsDb.drafts) : [], feedback: (() => { try { return readFeedback(); } catch { return []; } })() };
 }
 function validSections(x: unknown): x is WorkSection[] { return Array.isArray(x) && x.every(s => s && typeof s.heading === 'string' && Array.isArray(s.items) && s.items.every((i: any) => i && typeof i.label === 'string' && typeof i.text === 'string')); }
 function validWork(w: any): w is Work { return !!w && typeof w.id === 'string' && typeof w.experienceId === 'string' && typeof w.experienceTitle === 'string' && Number.isInteger(w.contentVersion) && typeof w.updatedAt === 'string' && validSections(w.sections) && (w.before === null || w.before === undefined || validSections(w.before)) && Array.isArray(w.revisions ?? []); }
@@ -86,9 +108,9 @@ export function importBackup(text: string) {
   let data: any; try { data = JSON.parse(text); } catch { throw new LocalError('IMPORT_FORMAT', '这个文件不是有效的备份文件（无法读取）。', '请选择从「我的 → 导出备份」得到的 .json 文件，不要用其他软件修改它。'); }
   if (data?.format !== BACKUP_FORMAT) throw new LocalError('IMPORT_FORMAT', '这个文件不是 on stage 的备份文件。', '请选择从「我的 → 导出备份」得到的 .json 文件。');
   if (data.version !== 1) throw new LocalError('IMPORT_VERSION', '这个备份来自不认识的版本，暂时不能导入。', '请用同一版本的网站导出备份，或联系我们。');
-  const works = Array.isArray(data.works) ? data.works : [], drafts = Array.isArray(data.drafts) ? data.drafts : [];
-  const goodWorks = works.filter(validWork), goodDrafts = drafts.filter(validDraft);
-  if (!goodWorks.length && !goodDrafts.length) throw new LocalError('IMPORT_EMPTY', works.length || drafts.length ? '备份里的内容格式不对，没有可以导入的成果或草稿。' : '这个备份里没有成果或草稿。', '确认选对了文件；现有的成果和草稿都没有被改动。');
+  const works = Array.isArray(data.works) ? data.works : [], drafts = Array.isArray(data.drafts) ? data.drafts : [], feedback = Array.isArray(data.feedback) ? data.feedback : []; // V1.8 以前的备份没有 feedback
+  const goodWorks = works.filter(validWork), goodDrafts = drafts.filter(validDraft), goodFeedback = feedback.filter(validFeedback);
+  if (!goodWorks.length && !goodDrafts.length && !goodFeedback.length) throw new LocalError('IMPORT_EMPTY', works.length || drafts.length || feedback.length ? '备份里的内容格式不对，没有可以导入的成果、草稿或反馈。' : '这个备份里没有成果或草稿。', '确认选对了文件；现有的成果和草稿都没有被改动。');
   // 先算好结果，最后一次性写入：任何一步失败，现有数据都不变。
   const current = readWorks(); let added = 0, updated = 0, kept = 0;
   for (const w of goodWorks as Work[]) {
@@ -105,9 +127,16 @@ export function importBackup(text: string) {
     db.drafts[d.content_id] = { owner: db.owner, content_id: d.content_id, version: 1, content_version: d.content_version, answers: d.answers, conflict: 0, conflict_with: null, saved_at: typeof d.saved_at === 'string' ? d.saved_at : new Date().toISOString(), progress: d.progress && typeof d.progress === 'object' ? d.progress : {} };
     draftsAdded++;
   }
+  // 反馈：同一个体验同一版本保留较新的一条
+  const fb = goodFeedback.length ? readFeedback() : []; let feedbackAdded = 0;
+  for (const f of goodFeedback as Feedback[]) {
+    const same = fb.find(x => x.id === f.id) || fb.find(x => x.experienceId === f.experienceId && x.contentVersion === f.contentVersion);
+    if (!same) { fb.push({ ...f, experienceTitle: String(f.experienceTitle || ''), createdAt: f.createdAt || f.updatedAt, sent: false }); feedbackAdded++; }
+    else if (f.updatedAt > same.updatedAt) { Object.assign(same, { rating: f.rating, reason: f.reason, updatedAt: f.updatedAt }); feedbackAdded++; }
+  }
   current.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  writeWorks(current); if (draftsAdded) writeKey(DRAFT_KEY, db);
-  return { added, updated, kept, draftsAdded, draftsSkipped, skippedBad: works.length - goodWorks.length + drafts.length - goodDrafts.length };
+  writeWorks(current); if (draftsAdded) writeKey(DRAFT_KEY, db); if (feedbackAdded) writeFeedback(fb);
+  return { added, updated, kept, draftsAdded, draftsSkipped, feedbackAdded, skippedBad: works.length - goodWorks.length + drafts.length - goodDrafts.length + feedback.length - goodFeedback.length };
 }
 
 /* ---------- 旧版草稿迁移 ----------

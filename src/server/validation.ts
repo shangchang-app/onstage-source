@@ -36,7 +36,7 @@ export const practiceFieldSchema = z.object({
 /* ---------- 短体验（V1.5）：收到任务 → 看材料 → 行动与理由 → 基于操作的复盘 ---------- */
 const sourceKind = z.enum(['sim', 'adapted', 'public', 'cocreate']);
 const matId = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,39}$/i, '材料编号只能用字母、数字、下划线和短横线');
-const verdictTone = z.enum(['core', 'support', 'tradeoff', 'weak', 'risky', 'key', 'later']);
+const verdictTone = z.enum(['core', 'support', 'tradeoff', 'weak', 'risky', 'key', 'later', 'strong', 'partial', 'miss']);
 export const quickSchema = z.object({
   brief: z.object({ from: short.min(1), fromRole: short.default(''), time: short.default(''), message: text.min(1), role: text.default(''), stats: z.array(z.object({ label: short.min(1), value: short.min(1), note: short.default('') })).max(4).default([]) }),
   materials: z.array(z.object({
@@ -51,7 +51,15 @@ export const quickSchema = z.object({
   reference: z.object({ summary: text.min(1), cause: text.min(1), actions: text.min(1), verify: text.min(1), uncertain: z.array(text).max(10).default([]) }),
   parts: z.array(short).max(10).default([]),
   deep: z.string().max(100).default(''),
-  provenance: z.array(z.object({ kind: sourceKind, title: short.min(1), detail: text.min(1), source: short.default(''), url: z.string().max(500).default(''), date: short.default('') })).max(10).default([])
+  provenance: z.array(z.object({ kind: sourceKind, title: short.min(1), detail: text.min(1), source: short.default(''), url: z.string().max(500).default(''), date: short.default('') })).max(10).default([]),
+  /* V1.8 短实践：mode=pick 是「选一项 + 一句理由 + 即时反馈 + 写一句后续」（plan.actions 单选、plan.reason、plan.follow）；
+     不写就是原来的 plan（组合行动、写理由、指出缺的信息），行为不变。下面的文案字段不写就用原来的写法。 */
+  mode: z.enum(['plan', 'pick']).default('plan'),
+  stepNames: z.array(short.min(1)).length(4).optional(),
+  flow: z.array(short.min(1)).length(4).optional(),
+  ask: text.default(''), simNote: short.default(''), matIntro: short.default(''), actTitle: short.default(''), actIntro: text.default(''),
+  refHeadings: z.array(short.min(1)).length(4).optional(),
+  deepWhy: text.default('')
 });
 export type QuickData = z.infer<typeof quickSchema>;
 export const guideSchema = z.object({
@@ -167,6 +175,10 @@ export function checkGuide(data: ContentData) {
     demand(act && act.kind === 'choices' && act.options.every(o => q.actions[o]), 422, 'GUIDE', '短体验需要「plan.actions」选择题，且每个选项都要有反馈');
     demand(!mis || mis.options.every(o => q.missing[o]), 422, 'GUIDE', '「plan.missing」的每个选项都要有说明');
     demand(fields.some(f => f.id === 'plan.reason'), 422, 'GUIDE', '短体验需要「plan.reason」理由字段');
+    if (q.mode === 'pick') {
+      demand(act!.single, 422, 'GUIDE', '「选一项」的短实践里，plan.actions 必须是单选');
+      demand(fields.some(f => f.id === 'plan.follow' && f.kind !== 'choices'), 422, 'GUIDE', '「选一项」的短实践需要「plan.follow」文字字段');
+    }
   }
 }
 
@@ -197,7 +209,7 @@ export function requiredStatus(data: ContentData, answers: Answers) {
     const fields = data.guide.practice.flatMap(p => p.fields).filter(f => f.required);
     const missing = fields.filter(f => !fieldDone(f, answers[f.id])).map(f => missingLabel(f, answers[f.id]));
     let total = fields.length;
-    if (data.guide.quick) { total++; const a = answers['plan.actions'], own = answers['plan.own']; const okA = Array.isArray(a) && a.length > 0 && a.every(x => data.guide!.quick!.actions[x]); if (!okA && !(typeof own === 'string' && own.trim().length >= 2)) missing.push(QUICK_ACTION_LABEL); }
+    if (data.guide.quick && data.guide.quick.mode !== 'pick') { total++; const a = answers['plan.actions'], own = answers['plan.own']; const okA = Array.isArray(a) && a.length > 0 && a.every(x => data.guide!.quick!.actions[x]); if (!okA && !(typeof own === 'string' && own.trim().length >= 2)) missing.push(QUICK_ACTION_LABEL); }
     return { total, done: total - missing.length, missing };
   }
   const missing = data.tasks.map((t, i) => {
