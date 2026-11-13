@@ -46,7 +46,7 @@ const P = JSON.parse(spawnSync(process.execPath, [tsx, 'scripts/buddy-paths.ts']
     for (let i = 0; i < role.answers.length; i++) { await p.locator('.bd-opt', { hasText: role.answers[i] }).click(); await p.locator('.bd-nav .btn-primary').click(); if (i < role.answers.length - 1) await p.waitForSelector(`.bd-progress >> text=${i + 2} / 8`); }
     await p.waitForSelector('.bd-result h1'); ok((await p.locator('.bd-result h1').innerText()).includes(role.name), '结果不是预期的角色');
     await p.waitForSelector('.bd-rec-card'); await p.screenshot({ path: path.join(SHOTS, 'i01-手机-动物结果与推荐.png'), fullPage: true });
-    const full = p.locator('.bd-rec-card[data-kind="deep"], .bd-rec-card[data-kind="quick"]').first(); ok(await full.count() === 1, '推荐里没有完整实践');
+    const full = p.locator('.bd-rec-card[data-kind="deep"]').first(); // V1.8：第一入口是短实践，这里走第二入口的完整实践 ok(await full.count() === 1, '推荐里没有完整实践');
     const href = await full.getAttribute('href'); ok(href === BASE + '/experiences/' + role.full + '/', '推荐的完整实践不对：' + href);
     await full.click(); await p.waitForURL('**/experiences/' + role.full + '/');
     await p.click(`a[href="${BASE}/experiences/${role.full}/work"], a[href="${BASE}/experiences/${role.full}/work/"]`); await p.waitForSelector('.stepper');

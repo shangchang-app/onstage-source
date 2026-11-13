@@ -51,8 +51,8 @@ async function check(name, fn) { try { await fn(); results.push({ name, pass: tr
     // V1.7 隐藏工位搭子模块已完成：按钮打开 /buddy/（详细检查在 buddy-check.cjs）
     ok(await p.locator('main .fun a:has-text("看看是谁")').getAttribute('href') === BASE + '/buddy/', '趣味入口按钮应打开 /buddy/');
     const fun = await p.locator('.fun').boundingBox(), exp = await p.locator('#h-exp').boundingBox(); ok(fun && exp && exp.y > fun.y && exp.y < 860, '岗位实践区应紧跟趣味入口，并在第一屏能看到');
-    ok(/版本 1\.7\.0 · 源码提交 [0-9a-f]{7}/.test(await p.locator('[data-testid="build-stamp"]').innerText()), '页脚没有版本和提交号');
-    const v = await (await p.request.get(SITE + '/version.json')).json(); ok(v.version === '1.7.0' && /^[0-9a-f]{7}/.test(v.commit), 'version.json 不对');
+    ok(/版本 1\.8\.0 · 源码提交 [0-9a-f]{7}/.test(await p.locator('[data-testid="build-stamp"]').innerText()), '页脚没有版本和提交号');
+    const v = await (await p.request.get(SITE + '/version.json')).json(); ok(v.version === '1.8.0' && /^[0-9a-f]{7}/.test(v.commit), 'version.json 不对');
     ok(await p.locator('main a.card[href$="/experiences/ops-returns/"]').count() === 1, '没有短版入口');
     ok(await p.locator('.site-head .badge:has-text("试用版")').count() === 1 && await p.locator('.site-head a:has-text("登录")').count() === 0, '页头状态不对');
     ok(await p.locator('.dev-bar').count() === 0, '出现测试环境提示条');
