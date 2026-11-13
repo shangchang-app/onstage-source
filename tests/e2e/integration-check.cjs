@@ -76,9 +76,9 @@ const P = JSON.parse(spawnSync(process.execPath, [tsx, 'scripts/buddy-paths.ts']
         ok(btn, '「还差」里找不到对应项');
       }
       await btn.click(); await p.waitForTimeout(500);
-      const r = await p.evaluate(() => { const a = document.activeElement; const fs = a?.closest('fieldset'); return { id: a?.id, tag: a?.tagName, type: a?.getAttribute('type'), fs: fs?.id, inView: a ? (() => { const b = a.getBoundingClientRect(); return b.top >= 0 && b.bottom <= innerHeight; })() : false }; });
+      const r = await p.evaluate(() => { const a = document.activeElement; const fs = a?.closest('fieldset'); return { id: a?.id, tag: a?.tagName, type: a?.getAttribute('type'), fs: fs?.id, first: !!fs && a === fs.querySelector('input'), inView: a ? (() => { const b = a.getBoundingClientRect(); return b.top >= 0 && b.bottom <= innerHeight; })() : false }; });
       if (kind === 'textarea') ok(r.id === target && r.inView, '没有聚焦到对应的输入框：' + JSON.stringify(r));
-      else if (kind === 'fieldset') ok(r.fs === target && r.type === 'checkbox' && r.inView, '没有聚焦到选项组的第一个选项：' + JSON.stringify(r));
+      else if (kind === 'fieldset') ok(r.fs === target && ['checkbox', 'radio'].includes(r.type) && r.first && r.inView, '没有聚焦到选项组的第一个选项：' + JSON.stringify(r)); // 选人群已改为单选（radio）
       else ok(/^f-/.test(r.id || '') || /^f-/.test(r.fs || ''), '没有聚焦到任何作答项：' + JSON.stringify(r));
       // 完成区（第 6 步下方）的「还差」列表也是同样行为（只有不提供成果页的体验才有，这里检查有就测）
       ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from './session';
 import { Modal } from './modal';
 import { AnswerList, ErrorBox, Grid, Loading, dateTime, guestSaveNote, stepsFor } from './ui';
-import { MyWorks } from './output';
+import { MyWorks, practiceState, practiceText, savedWorkFor } from './output';
 import { LocalError, discardDraft } from '@/lib/local-data';
 
 export function Me() {
@@ -29,15 +29,17 @@ export function Me() {
       ? <div className="notice" style={{ marginBottom: 20 }}>{session.staticTrial ? '试用期间没有账号和服务器：草稿和成果都只保存在这个浏览器里，不能跨设备同步，也没有公开分享链接。' : '试用期间暂未开放登录：收藏、完成记录和跨设备继续暂不可用。成果保存在这个浏览器里。'}{guestSaveNote(session.sessionDays)}草稿和成果分开保存，清除草稿不会删除成果。建议定期导出备份。</div>
       : <div className="notice" style={{ marginBottom: 20 }}>登录后可以收藏、跨设备继续体验、保存完成记录。<Link href="/login?next=/me">去登录 →</Link></div>)}
 
-    <section className="sec" aria-labelledby="h-cont"><div className="sec-h"><div><h2 id="h-cont">继续体验</h2><p>从上次停下的地方继续。</p></div></div>
-      {cont.length ? <div className="stack">{cont.map((d: any) => <div className="list-row" key={d.contentId}>
+    <section className="sec" aria-labelledby="h-cont"><div className="sec-h"><div><h2 id="h-cont">继续体验</h2><p>从上次停下的地方继续。必填作答写完并保存成果，就算完成实践（不要求看完每一步）。</p></div></div>
+      {cont.length ? <div className="stack">{cont.map((d: any) => { const ps = practiceState(d.answered, savedWorkFor(d.contentId, d.contentVersion), !!d.content.data.guideSummary?.output); return <div className="list-row" key={d.contentId} data-testid={'draft-' + d.contentId}>
         <div style={{ minWidth: 0 }}><b>{d.content.data.title}</b>
-          <div className="small muted">{d.content.data.format === 'guided' ? (() => { const st = stepsFor(d.content.data), i = Math.min(d.progress?.step ?? 0, st.length - 1); return <>停在第 {i + 1} 步「{st[i]}」 · 已浏览 {Math.min(d.progress?.visited?.length || 0, st.length)}/{st.length} 步 · </>; })() : null}{d.progress?.referenceViewed ? '已看参考思路 · ' : ''}已作答 {d.answered?.done ?? 0}/{d.answered?.total ?? 0} · 未完成实践 · 保存于 {dateTime(d.savedAt)}</div>
+          {/* 完成状态只看作答和成果（与成果页的「完成时间」同一口径），不看浏览过哪些步骤 */}
+          <div className="small muted" data-testid="practice-state">{practiceText(ps)}</div>
+          <div className="xs muted">{d.content.data.format === 'guided' && ps.kind !== 'done' ? (() => { const st = stepsFor(d.content.data), i = Math.min(d.progress?.step ?? 0, st.length - 1); return <>停在第 {i + 1} 步「{st[i]}」 · </>; })() : null}{d.progress?.referenceViewed ? '已看参考思路 · ' : ''}草稿保存于 {dateTime(d.savedAt)}</div>
           {d.conflict && <span className="badge b-warn" style={{ marginTop: 4 }}>有两份作答，需要选择</span>}
           {d.outdated && <span className="badge b-gray" style={{ marginTop: 4 }}>体验已更新，你在做旧版本，可以继续做完</span>}
         </div>
-        <div className="row">{session.staticTrial && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDrop(d)}>清除草稿</button>}<Link className="btn btn-primary" href={'/experiences/' + d.contentId + '/work'}>继续体验 →</Link></div>
-      </div>)}</div> : <div className="empty">还没有进行中的体验。<Link href="/experiences">去看看岗位体验 →</Link></div>}
+        <div className="row">{session.staticTrial && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDrop(d)}>清除草稿</button>}{ps.work && <Link className="btn" href={'/works/?id=' + ps.work.id}>查看成果</Link>}<Link className={'btn' + (ps.kind === 'done' ? '' : ' btn-primary')} href={'/experiences/' + d.contentId + '/work'}>{ps.kind === 'done' ? '回到体验修改' : '继续体验 →'}</Link></div>
+      </div>; })}</div> : <div className="empty">还没有进行中的体验。<Link href="/experiences">去看看岗位体验 →</Link></div>}
       {off.length > 0 && <div className="stack" style={{ marginTop: 12 }}>{off.map((d: any) => <div className="list-row" key={d.contentId}><div><b>{d.content.data.title === '这项内容暂不可用' ? '已下线的体验' : d.content.data.title}</b><div className="small muted">体验已下线，草稿保留但暂时不能继续 · 保存于 {dateTime(d.savedAt)}</div></div></div>)}</div>}
     </section>
 

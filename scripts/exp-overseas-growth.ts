@@ -114,7 +114,7 @@ export const overseasGrowth = {
         hints: ['用 4 个角度比一比：问题有多痛、能不能找到他们、产品现在能不能服务他们、有没有可能付钱。', '访谈里，谁说的是过去真实发生的事，谁说的是「如果」？', '别忘了材料 1 里产品支持哪些语言。'],
         framework: '我先服务 __。理由：一是 __（材料 __）；二是 __。我放弃了 __，因为 __。', terms: ['用户群'],
         fields: [
-          { id: 'g1.segment', label: '先服务哪类用户（选一类）', kind: 'choices', options: SEGMENTS, placeholder: '', required: true },
+          { id: 'g1.segment', label: '先服务哪类用户（选一类）', kind: 'choices', single: true, options: SEGMENTS, placeholder: '', required: true },
           { id: 'g1.why', label: '理由（引用至少一条材料），以及你暂时放弃了谁、为什么', kind: 'textarea', options: [], placeholder: '例如：材料 2 里……；受访者 4 说……', required: true }
         ] },
       { id: 'g2', title: '分清事实和推测', when: 'practice', lessons: ['G4'], material: '',
@@ -179,7 +179,7 @@ export const overseasGrowth = {
         hints: ['你的验证办法依赖 App 吗？访谈和人工代记账需要用户装 App 吗？', '如果改成先服务安卓比例高的人群，材料 1 和受访者 8 提到的语言问题怎么办？'],
         framework: '我的选择是 __。因为我的验证办法 __（依赖 / 不依赖）App；如果改人群，会遇到 __。', terms: [],
         fields: [
-          { id: 'g7.change', label: '方案需要怎样调整（选一项）', kind: 'choices', options: ['不需要调整', '只调整验证办法', '只调整优先用户', '优先用户和验证办法都要调整'], placeholder: '', required: true },
+          { id: 'g7.change', label: '方案需要怎样调整（选一项）', kind: 'choices', single: true, options: ['不需要调整', '只调整验证办法', '只调整优先用户', '优先用户和验证办法都要调整'], placeholder: '', required: true },
           { id: 'g7.why', label: '理由：哪些部分受影响，哪些不受影响', kind: 'textarea', options: [], placeholder: '', required: true }
         ] }
     ],
