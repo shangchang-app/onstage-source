@@ -289,7 +289,7 @@ const WORKS = JSON.stringify({ schema: 1, works: [{ id: 'w-keep', title: '保留
     await start(p); await runPath(p, P.roles[1].answers); await resultName(p);
     await p.locator('.bd-actions').getByRole('button', { name: '分享给好友' }).click(); await p.waitForSelector('.bd-share-img');
     ok(await p.getByRole('button', { name: '下载图片' }).count() === 0, '微信里不应显示下载按钮');
-    const t = await p.locator('.modal').innerText(); ok(t.includes('长按上面的图片') && t.includes('发送给朋友') && t.includes('保存图片'), '缺少长按发送 / 保存提示'); ok(!/成功/.test(t), '不应显示成功');
+    const t = await p.locator('.modal').innerText(); ok(t.includes('长按下面的图片') && t.includes('如果菜单里有「发送给朋友」') && t.includes('保存图片'), '缺少长按发送 / 保存提示'); ok(!/成功/.test(t), '不应显示成功');
     await shot(p, '06-微信UA-分享卡-390', false); await c.close();
   });
 

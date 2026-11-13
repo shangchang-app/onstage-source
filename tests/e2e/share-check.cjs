@@ -22,16 +22,23 @@ const results = []; const ok = (c, m) => { if (!c) throw new Error(m); };
 async function check(name, fn) { try { await fn(); results.push({ name, pass: true }); console.log('PASS', name); } catch (e) { results.push({ name, pass: false, error: String(e.message).slice(0, 400) }); console.log('FAIL', name, '\n   ', e.message); } }
 
 const WECHAT_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.50(0x1800322d) NetType/WIFI Language/zh_CN';
-/* 系统分享面板的替身：mode = file（能带图片）| link（只能分享链接）| abort（用户取消）| deny（打不开）。记录页面交给系统的内容。 */
+/* 系统分享面板的替身，记录页面每次交给系统的内容。mode：
+   file（能带图片）| link（只能分享链接）| abort（用户取消）| deny（带图片、只分享链接都打不开）
+   filefail（带图片打不开，只分享链接能打开）| filefail-abort（带图片打不开，只分享链接时用户取消） */
 const shareStub = mode => `(() => {
   window.__shared = [];
-  navigator.canShare = d => ${mode === 'file' ? 'true' : '!(d && d.files && d.files.length)'};
+  const mode = ${JSON.stringify(mode)};
+  navigator.canShare = d => mode === 'link' ? !(d && d.files && d.files.length) : true;
   navigator.share = async d => {
     const files = await Promise.all((d.files || []).map(async f => ({ name: f.name, type: f.type, size: f.size, head: Array.from(new Uint8Array(await f.slice(0, 8).arrayBuffer())) })));
     window.__shared.push({ title: d.title, text: d.text, url: d.url, files });
-    ${mode === 'abort' ? "throw new DOMException('cancel', 'AbortError');" : mode === 'deny' ? "throw new DOMException('denied', 'NotAllowedError');" : ''}
+    const withFile = files.length > 0;
+    if (mode === 'abort') throw new DOMException('cancel', 'AbortError');
+    if (mode === 'deny' || (withFile && mode.startsWith('filefail'))) throw new DOMException('denied', 'NotAllowedError');
+    if (!withFile && mode === 'filefail-abort') throw new DOMException('cancel', 'AbortError');
   };
 })()`;
+const sharedCount = p => p.evaluate(() => window.__shared.length);
 const noShare = `(() => { delete Navigator.prototype.share; delete Navigator.prototype.canShare; })()`;
 
 (async () => {
@@ -77,21 +84,54 @@ const noShare = `(() => { delete Navigator.prototype.share; delete Navigator.pro
     const s = (await p.evaluate(() => window.__shared))[0];
     ok(s.files.length === 0 && s.url === EXPECT_URL && !/[?#]/.test(s.url), '没有改为分享链接，或链接带了参数：' + JSON.stringify(s));
     ok((await m.innerText()).includes('已改为分享探索链接'), '没有说明改为分享链接');
+    ok(await m.getByTestId('share-link-only').count() === 0, '已经分享了链接，不应再显示「仅分享链接」');
     ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
   });
 
-  await check('用户在系统分享面板里取消：不报错，也不说已分享', async () => {
+  await check('用户在系统分享面板里取消：不报错、不说已分享、不自动重试，也不弹出「仅分享链接」', async () => {
     const { c, p } = await ctx(mobile, shareStub('abort')); await finish(p); const m = await openShare(p);
-    await m.getByTestId('share-system').click(); await p.waitForFunction(() => window.__shared.length === 1); await p.waitForTimeout(300);
-    const t = await m.innerText(); ok(!t.includes('已把分享卡') && !t.includes('没有打开') && (await m.locator('.bd-note.bad').count()) === 0, '取消后不应有提示：' + t.replace(/\s+/g, ' ').slice(-120));
+    await m.getByTestId('share-system').click(); await p.waitForFunction(() => window.__shared.length === 1); await p.waitForTimeout(600);
+    const t = await m.innerText(); ok(!t.includes('已把') && !t.includes('没有打开') && !/成功/.test(t) && (await m.locator('.bd-note.bad').count()) === 0, '取消后不应有提示：' + t.replace(/\s+/g, ' ').slice(-120));
+    ok(await sharedCount(p) === 1, '取消后不应自动再调一次系统分享');
+    ok(await m.getByTestId('share-link-only').count() === 0, '用户取消不是失败，不应显示「仅分享链接」');
     ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
   });
 
-  await check('系统分享打不开：明确说没有打开，给出复制链接和下载图片的办法', async () => {
+  await check('带图片分享打不开：不自动重试；显示独立的「仅分享链接」按钮和复制链接、下载图片；再点仍打不开时明确说没有打开', async () => {
     const { c, p } = await ctx(mobile, shareStub('deny')); await finish(p); const m = await openShare(p);
-    await m.getByTestId('share-system').click(); await p.waitForFunction(() => window.__shared.length === 1);
-    const t = await m.innerText(); ok(t.includes('系统分享没有打开') && t.includes('复制链接'), '失败提示不对');
+    await m.getByTestId('share-system').click(); await p.waitForFunction(() => window.__shared.length === 1); await p.waitForTimeout(600);
+    ok(await sharedCount(p) === 1, '带图片分享失败后不应自动改为分享链接（要等用户再点）');
+    let t = await m.innerText(); ok(t.includes('带图片的分享没有打开') && t.includes('仅分享链接') && t.includes('复制链接') && !/成功/.test(t), '失败提示不对：' + t.replace(/\s+/g, ' ').slice(-160));
+    const lo = m.getByTestId('share-link-only'); await lo.waitFor();
+    const box = await lo.boundingBox(); ok(box && box.y + box.height <= 844, '手机上看不到「仅分享链接」按钮：' + JSON.stringify(box));
+    await p.waitForTimeout(400); const nb = await m.getByTestId('share-msg').boundingBox(), lb = await lo.boundingBox();
+    ok(nb && nb.y >= 0 && nb.y + nb.height <= 844 && lb.y >= 0 && lb.y + lb.height <= 844, '手机上失败提示和「仅分享链接」应同时看得到：' + JSON.stringify({ nb, lb }));
     ok(await m.getByRole('button', { name: '复制链接' }).count() === 1 && await m.getByRole('button', { name: '下载图片' }).count() === 1, '缺少替代办法的按钮');
+    await p.screenshot({ path: path.join(SHOTS, 'h05-手机-图片分享失败.png') });
+    await lo.click(); await p.waitForFunction(() => window.__shared.length === 2); await p.waitForTimeout(300);
+    const s2 = (await p.evaluate(() => window.__shared))[1]; ok(s2.files.length === 0 && s2.url === EXPECT_URL, '「仅分享链接」应只交给系统探索链接：' + JSON.stringify(s2));
+    t = await m.innerText(); ok(t.includes('仅分享链接也没有打开') && !/成功/.test(t), '再次失败的提示不对：' + t.replace(/\s+/g, ' ').slice(-160));
+    ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
+  });
+
+  await check('带图片分享打不开、用户再点「仅分享链接」：只交给系统不带参数的探索链接（不带图片和作答），提示交给了 App，不说成功', async () => {
+    const { c, p } = await ctx(mobile, shareStub('filefail')); const { name, picked } = await finish(p); const m = await openShare(p);
+    await m.getByTestId('share-system').click(); await p.waitForFunction(() => window.__shared.length === 1);
+    await m.getByTestId('share-link-only').click(); await p.waitForFunction(() => window.__shared.length === 2); await p.waitForTimeout(300);
+    const s = (await p.evaluate(() => window.__shared))[1];
+    ok(s.files.length === 0 && s.url === EXPECT_URL && !/[?#]/.test(s.url) && s.text.includes(name) && noAnswers(s.text + s.title, picked), '仅分享链接的内容不对：' + JSON.stringify(s));
+    const t = await m.innerText(); ok(t.includes('已把探索链接交给你选的 App') && !/成功/.test(t), '提示不对：' + t.replace(/\s+/g, ' ').slice(-160));
+    ok(await m.getByTestId('share-link-only').count() === 0, '链接已交出后不应再显示「仅分享链接」');
+    ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
+  });
+
+  await check('「仅分享链接」时用户取消：不提示、不说成功、不自动再试，按钮保留可以再点', async () => {
+    const { c, p } = await ctx(mobile, shareStub('filefail-abort')); await finish(p); const m = await openShare(p);
+    await m.getByTestId('share-system').click(); await p.waitForFunction(() => window.__shared.length === 1);
+    await m.getByTestId('share-link-only').click(); await p.waitForFunction(() => window.__shared.length === 2); await p.waitForTimeout(600);
+    ok(await sharedCount(p) === 2, '取消后不应自动再调系统分享');
+    const t = await m.innerText(); ok(!t.includes('已把') && !t.includes('没有打开') && !/成功/.test(t) && (await m.locator('.bd-note.bad').count()) === 0, '取消后不应有提示：' + t.replace(/\s+/g, ' ').slice(-160));
+    ok(await m.getByTestId('share-link-only').count() === 1, '取消后「仅分享链接」应保留');
     ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
   });
 
@@ -116,10 +156,15 @@ const noShare = `(() => { delete Navigator.prototype.share; delete Navigator.pro
     ok(p.errors.length === 0, p.errors.join(' | ')); await c.close();
   });
 
-  await check('微信内置浏览器（模拟 UA）：不显示下载和「分享给好友」按钮（网页调不起微信分享）；提示长按图片「发送给朋友」或用右上角「···」；图片可长按（data: 图片）；可复制链接', async () => {
+  await check('微信内置浏览器（模拟 UA）：长按提示在图片上方、390px 第一屏可见，用条件式说法（不承诺一定有「发送给朋友」）；不显示下载和「分享给好友」；图片可长按（data: 图片）；保留复制链接和截图', async () => {
     const { c, p } = await ctx({ ...mobile, userAgent: WECHAT_UA }, shareStub('file')); await finish(p); const m = await openShare(p);
     ok(await m.getByRole('button', { name: '下载图片' }).count() === 0 && await m.getByTestId('share-system').count() === 0, '微信里不应显示下载或系统分享按钮');
-    const t = await m.getByTestId('share-inapp').innerText(); ok(t.includes('长按上面的图片') && t.includes('发送给朋友') && t.includes('···'), '微信里的分享提示不对：' + t);
+    const hint = m.getByTestId('share-inapp'), t = await hint.innerText();
+    ok(t.includes('长按下面的图片') && t.includes('如果菜单里有「发送给朋友」') && t.includes('保存图片') && t.includes('···') && t.includes('复制链接') && t.includes('截图'), '微信里的分享提示不对：' + t);
+    ok(!/可以选「发送给朋友」|一定/.test(t), '不应承诺所有微信版本都有「发送给朋友」：' + t);
+    const hb = await hint.boundingBox(), ib = await m.locator('.bd-share-img').boundingBox();
+    ok(hb && ib && hb.y + hb.height <= ib.y + 1, '长按提示应在图片上方：' + JSON.stringify({ hb, ib }));
+    ok(hb.y >= 0 && hb.y + hb.height <= 844, '390px 打开弹窗第一屏看不到长按提示：' + JSON.stringify(hb));
     ok((await m.locator('.bd-share-img').getAttribute('src')).startsWith('data:image/png'), '微信里图片应是 data: 图片，长按才能发送或保存');
     ok(await m.getByRole('button', { name: '复制链接' }).count() === 1, '微信里应能复制链接');
     ok(!/成功/.test(await m.innerText()), '不应显示成功');

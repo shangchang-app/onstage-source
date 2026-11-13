@@ -123,16 +123,27 @@ export const inWeChat = (ua = typeof navigator === 'undefined' ? '' : navigator.
 export const canSystemShare = () => typeof navigator !== 'undefined' && typeof (navigator as any).share === 'function' && !downloadLimited();
 
 export type ShareResult = 'file' | 'link' | 'cancelled' | 'unsupported';
-/** 调起系统分享。必须在用户点击里调用。用户取消返回 cancelled；其他失败抛出原错误，由界面给出复制链接等替代办法。 */
+/** 系统分享调起失败（不是用户取消）。mode 说明这次是带图片分享还是只分享链接，界面据此决定要不要提供「仅分享链接」。 */
+export class SystemShareError extends Error { constructor(public mode: 'file' | 'link', public cause?: unknown) { super('系统分享没有打开'); } }
+const isAbort = (e: unknown) => (e as Error)?.name === 'AbortError';
+/** 调起系统分享（每次点击只调一次，不自动重试）。能带图片就带图片；浏览器明确不支持带图片时分享入口链接。
+    用户取消返回 cancelled；其他失败抛出 SystemShareError，由界面给出「仅分享链接」、复制链接等办法，等用户再点。 */
 export async function systemShare(role: Pick<Role, 'name' | 'line'>, blob: Blob, fileName: string): Promise<ShareResult> {
   const nav = navigator as any; if (typeof nav.share !== 'function') return 'unsupported';
   const url = entryUrl(), text = shareText(role);
   const file = new File([blob], fileName, { type: 'image/png' });
+  const withFile = typeof nav.canShare === 'function' && !!nav.canShare({ files: [file] });
   try {
-    if (typeof nav.canShare === 'function' && nav.canShare({ files: [file] })) { await nav.share({ files: [file], title: SHARE_TITLE, text: shareMessage(role) }); return 'file'; }
+    if (withFile) { await nav.share({ files: [file], title: SHARE_TITLE, text: shareMessage(role) }); return 'file'; }
     if (url) { await nav.share({ title: SHARE_TITLE, text, url }); return 'link'; }
     return 'unsupported';
-  } catch (e) { if ((e as Error)?.name === 'AbortError') return 'cancelled'; throw e; }
+  } catch (e) { if (isAbort(e)) return 'cancelled'; throw new SystemShareError(withFile ? 'file' : 'link', e); }
+}
+/** 只分享入口链接（图片分享失败后，由用户再点一次「仅分享链接」触发）。取消返回 cancelled；失败抛出 SystemShareError。 */
+export async function shareLinkOnly(role: Pick<Role, 'name' | 'line'>): Promise<'link' | 'cancelled' | 'unsupported'> {
+  const nav = navigator as any, url = entryUrl(); if (typeof nav.share !== 'function' || !url) return 'unsupported';
+  try { await nav.share({ title: SHARE_TITLE, text: shareText(role), url }); return 'link'; }
+  catch (e) { if (isAbort(e)) return 'cancelled'; throw new SystemShareError('link', e); }
 }
 /** 复制「一句话 + 入口链接」。剪贴板不可用时返回 false，界面改为显示文字让用户手动复制。 */
 export async function copyShareMessage(role: Pick<Role, 'name' | 'line'>) {
